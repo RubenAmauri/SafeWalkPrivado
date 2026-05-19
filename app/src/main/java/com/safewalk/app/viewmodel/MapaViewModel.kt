@@ -52,13 +52,17 @@ class MapaViewModel : ViewModel() {
     }
 
     private suspend fun suscribirseACambios() {
-        val channel = SupabaseClient.client.realtime.channel("avistamientos")
-        channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-            table = "avistamientos"
-        }.onEach {
-            recargarZonas()
-        }.launchIn(viewModelScope)
-        channel.subscribe()
+        try {
+            val channel = SupabaseClient.client.realtime.channel("avistamientos-${System.currentTimeMillis()}")
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "avistamientos"
+            }.onEach {
+                recargarZonas()
+            }.launchIn(viewModelScope)
+            channel.subscribe()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al suscribirse: ${e.message}", e)
+        }
     }
 
     fun recargarZonas() {

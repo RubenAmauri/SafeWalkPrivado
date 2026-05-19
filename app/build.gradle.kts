@@ -36,12 +36,13 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Inyectamos las variables que leímos arriba
         val url = localProperties.getProperty("SUPABASE_URL") ?: ""
         val key = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
 
         buildConfigField("String", "SUPABASE_URL", "\"$url\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$key\"")
+
+        manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("MAPS_API_KEY") ?: ""
     }
 
     buildTypes {
