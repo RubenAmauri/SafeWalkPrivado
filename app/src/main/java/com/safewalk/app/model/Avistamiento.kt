@@ -17,7 +17,9 @@ data class Avistamiento(
     @SerialName("fecha_creacion")
     val fechaCreacion: String = "",
     @SerialName("ubicacion_aproximada")
-    val ubicacionAproximada: String = ""
+    val ubicacionAproximada: String = "",
+    @SerialName("usuario_id")
+    val usuarioId: String = "",
 )
 
 @Serializable
@@ -38,3 +40,8 @@ data class AvistamientoInsert(
     @SerialName("ubicacion_aproximada") val ubicacionAproximada: String
 )
 
+@Serializable
+data class FotoInsert(
+    @SerialName("avistamiento_id") val avistamientoId: String,
+    val url: String
+)

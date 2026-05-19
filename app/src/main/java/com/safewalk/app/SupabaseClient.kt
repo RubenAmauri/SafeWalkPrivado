@@ -27,6 +27,7 @@ object SupabaseClient {
             }
             install(Postgrest)
             install(Realtime)
+            install(io.github.jan.supabase.storage.Storage)
         }
     }
 }

@@ -6,23 +6,17 @@ import com.safewalk.app.SupabaseClient
 import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.ZonaAvistamiento
 import com.safewalk.app.repository.AvistamientoRepository
-import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import com.safewalk.app.model.NivelAgresividad
 
 class MapaViewModel : ViewModel() {
-    var descripcionReporte by mutableStateOf("")
-    var nivelReporte by mutableStateOf<NivelAgresividad?>(null)
 
     private val _zonas = MutableStateFlow<List<ZonaAvistamiento>>(emptyList())
     val zonas: StateFlow<List<ZonaAvistamiento>> = _zonas
@@ -38,6 +32,16 @@ class MapaViewModel : ViewModel() {
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+    private val _ubicacionPendiente = MutableStateFlow<Pair<Double, Double>?>(null)
+    val ubicacionPendiente: StateFlow<Pair<Double, Double>?> = _ubicacionPendiente
+
+    fun navegarAUbicacion(lat: Double, lng: Double) {
+        _ubicacionPendiente.value = Pair(lat, lng)
+    }
+
+    fun consumirUbicacionPendiente() {
+        _ubicacionPendiente.value = null
+    }
 
     init {
         viewModelScope.launch {
@@ -49,16 +53,12 @@ class MapaViewModel : ViewModel() {
 
     private suspend fun suscribirseACambios() {
         val channel = SupabaseClient.client.realtime.channel("avistamientos")
-
         channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = "avistamientos"
         }.onEach {
-            android.util.Log.d("SafeWalk", "Cambio detectado en avistamientos: $it")
             recargarZonas()
         }.launchIn(viewModelScope)
-
         channel.subscribe()
-        android.util.Log.d("SafeWalk", "Suscrito a canal avistamientos")
     }
 
     fun recargarZonas() {
@@ -70,21 +70,6 @@ class MapaViewModel : ViewModel() {
                 _zonas.value = AvistamientoRepository.getZonas(avistamientos)
             } catch (e: Exception) {
                 _error.value = "Error al cargar avistamientos: ${e.message}"
-            } finally {
-                _cargando.value = false
-            }
-        }
-    }
-
-    fun agregarAvistamiento(avistamiento: Avistamiento) {
-        viewModelScope.launch {
-            _cargando.value = true
-            _error.value = null
-            try {
-                AvistamientoRepository.agregarAvistamiento(avistamiento)
-                recargarZonas()
-            } catch (e: Exception) {
-                _error.value = "Error al guardar avistamiento: ${e.message}"
             } finally {
                 _cargando.value = false
             }
@@ -106,9 +91,5 @@ class MapaViewModel : ViewModel() {
     fun cerrarDetalle() {
         _zonaSeleccionada.value = null
         _avistamientoMarcado.value = null
-    }
-    fun limpiarFormularioReporte() {
-        descripcionReporte = ""
-        nivelReporte = null
     }
 }

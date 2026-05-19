@@ -4,10 +4,12 @@ import com.google.android.gms.maps.model.LatLng
 import com.safewalk.app.SupabaseClient
 import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.AvistamientoInsert
+import com.safewalk.app.model.FotoInsert
 import com.safewalk.app.model.NivelAgresividad
 import com.safewalk.app.model.ZonaAvistamiento
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlin.math.*
 
 object AvistamientoRepository {
@@ -51,9 +53,10 @@ object AvistamientoRepository {
         }
     }
 
-    suspend fun agregarAvistamiento(avistamiento: Avistamiento) {
-        try {
-            val insert = AvistamientoInsert(
+    suspend fun agregarAvistamiento(avistamiento: Avistamiento): String {
+        val resultado = SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .insert(AvistamientoInsert(
                 usuarioId = SupabaseClient.client.auth.currentUserOrNull()?.id,
                 latitud = avistamiento.latitud,
                 longitud = avistamiento.longitud,
@@ -61,14 +64,11 @@ object AvistamientoRepository {
                 agresividad = avistamiento.nivelAgresividad.name.lowercase(),
                 descripcion = avistamiento.descripcion,
                 ubicacionAproximada = avistamiento.ubicacionAproximada
-            )
-            SupabaseClient.client.postgrest
-                .from("avistamientos")
-                .insert(insert)
-        } catch (e: Exception) {
-            android.util.Log.e("SafeWalk", "Error al insertar avistamiento: ${e.message}", e)
-            throw e
-        }
+            )) {
+                select()
+            }
+            .decodeSingle<Avistamiento>()
+        return resultado.id
     }
 
     fun getZonas(avistamientos: List<Avistamiento>): List<ZonaAvistamiento> {
@@ -149,5 +149,97 @@ object AvistamientoRepository {
                     eq("avistamiento_id", avistamientoId)
                 }
             }
+    }
+    suspend fun subirFoto(
+        avistamientoId: String,
+        usuarioId: String,
+        imagenBytes: ByteArray
+    ): String? {
+        return try {
+            val path = "$usuarioId/$avistamientoId.jpg"
+            SupabaseClient.client.storage
+                .from("fotos-avistamientos")
+                .upload(path, imagenBytes)
+            val url = SupabaseClient.client.storage
+                .from("fotos-avistamientos")
+                .publicUrl(path)
+            SupabaseClient.client.postgrest
+                .from("fotos")
+                .insert(FotoInsert(avistamientoId = avistamientoId, url = url))
+            url
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al subir foto: ${e.message}", e)
+            null
+        }
+    }
+    suspend fun getFotosAvistamiento(avistamientoId: String): List<String> {
+        return try {
+            SupabaseClient.client.postgrest
+                .from("fotos")
+                .select {
+                    filter {
+                        eq("avistamiento_id", avistamientoId)
+                    }
+                }
+                .decodeList<FotoInsert>()
+                .map { it.url }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    suspend fun validarAvistamiento(avistamientoId: String, usuarioId: String) {
+        SupabaseClient.client.postgrest
+            .from("validaciones")
+            .insert(mapOf(
+                "avistamiento_id" to avistamientoId,
+                "usuario_id" to usuarioId,
+                "tipo" to "sigue_ahi"
+            ))
+        val actual = SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .select { filter { eq("avistamiento_id", avistamientoId) } }
+            .decodeSingle<Avistamiento>().totalConfirmaciones
+        SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .update({ set("total_confirmaciones", actual + 1) }) {
+                filter { eq("avistamiento_id", avistamientoId) }
+            }
+    }
+
+    suspend fun retirarValidacion(avistamientoId: String, usuarioId: String) {
+        SupabaseClient.client.postgrest
+            .from("validaciones")
+            .delete {
+                filter {
+                    eq("avistamiento_id", avistamientoId)
+                    eq("usuario_id", usuarioId)
+                }
+            }
+        val actual = SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .select { filter { eq("avistamiento_id", avistamientoId) } }
+            .decodeSingle<Avistamiento>().totalConfirmaciones
+        SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .update({ set("total_confirmaciones", maxOf(0, actual - 1)) }) {
+                filter { eq("avistamiento_id", avistamientoId) }
+            }
+    }
+
+    suspend fun obtenerValidacionUsuario(avistamientoId: String, usuarioId: String): Boolean {
+        return try {
+            val resultado = SupabaseClient.client.postgrest
+                .from("validaciones")
+                .select {
+                    filter {
+                        eq("avistamiento_id", avistamientoId)
+                        eq("usuario_id", usuarioId)
+                    }
+                }
+                .decodeList<Map<String, String>>()
+            resultado.isNotEmpty()
+        } catch (e: Exception) {
+            false
+        }
     }
 }
