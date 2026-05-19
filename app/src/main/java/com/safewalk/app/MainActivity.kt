@@ -35,15 +35,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SafeWalkNavigation(
     mapaViewModel: MapaViewModel = viewModel(),
-    feedViewModel: FeedViewModel = viewModel()
+    feedViewModel: FeedViewModel = viewModel(),
+    crearViewModel: CrearAvistamientoViewModel = viewModel()
+
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
     var ubicacionReporte by remember { mutableStateOf<LatLng?>(null) }
 
     val session by SupabaseClient.client.auth.sessionStatus.collectAsState()
-    val currentUserId = remember(session) {
-        SupabaseClient.client.auth.currentSessionOrNull()?.user?.id ?: ""
-    }
 
     NavHost(navController = navController, startDestination = "principal") {
 
@@ -56,30 +56,36 @@ fun SafeWalkNavigation(
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
                 },
-                onReportar = { avistamiento ->
-                    navController.navigate("reportar_contenido/${avistamiento.id}")
-                },
                 onIrAHistorial = {
                     navController.navigate("historial")
                 }
             )
         }
 
+
         composable("crear_reporte") {
-            CrearReporteScreen(
-                mapaViewModel = mapaViewModel,
-                ubicacionPreseleccionada = ubicacionReporte,
-                onGuardar = {
-                    mapaViewModel.agregarAvistamiento(it)
-                    mapaViewModel.limpiarFormularioReporte()
+            val guardadoExitoso by crearViewModel.guardadoExitoso.collectAsState()
+            val guardando by crearViewModel.guardando.collectAsState()
+
+            LaunchedEffect(guardadoExitoso) {
+                if (guardadoExitoso) {
+                    crearViewModel.limpiarFormulario()
                     ubicacionReporte = null
                     navController.popBackStack()
+                }
+            }
+
+            CrearReporteScreen(
+                crearViewModel = crearViewModel,
+                ubicacionPreseleccionada = ubicacionReporte,
+                onGuardar = { avistamiento ->
+                    crearViewModel.guardarReporte(avistamiento, context)
                 },
                 onSeleccionarUbicacion = {
                     navController.navigate("seleccionar_ubicacion")
                 },
                 onRegresar = {
-                    mapaViewModel.limpiarFormularioReporte()
+                    crearViewModel.limpiarFormulario()
                     ubicacionReporte = null
                     navController.popBackStack()
                 }
@@ -104,19 +110,17 @@ fun SafeWalkNavigation(
                     onRegresar = {
                         feedViewModel.limpiarSeleccion()
                         navController.popBackStack()
+                    },
+                    onVerEnMapa = { lat, lng ->
+                        mapaViewModel.marcarAvistamiento(it)
+                        mapaViewModel.navegarAUbicacion(lat, lng)
+                        feedViewModel.limpiarSeleccion()
+                        navController.navigate("principal") {
+                            popUpTo("principal") { inclusive = true }
+                        }
                     }
                 )
             }
-        }
-
-        composable("reportar_contenido/{avistamientoId}") { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("avistamientoId") ?: ""
-
-            ReporteScreen(
-                reporteId = id,
-                userId = currentUserId,
-                onRegresar = { navController.popBackStack() }
-            )
         }
 
         composable("historial") {
@@ -140,7 +144,6 @@ private fun PantallasPrincipales(
     feedViewModel: FeedViewModel,
     onCrearReporte: () -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
-    onReportar: (Avistamiento) -> Unit,
     onIrAHistorial: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
@@ -189,7 +192,6 @@ private fun PantallasPrincipales(
                 0 -> MapaScreen(
                     mapaViewModel = mapaViewModel,
                     onCrearReporte = onCrearReporte,
-                    onReportar = onReportar
                 )
 
                 1 -> FeedScreen(
@@ -197,7 +199,6 @@ private fun PantallasPrincipales(
                     latitud = ubicacionActual?.latitude ?: 22.7709,
                     longitud = ubicacionActual?.longitude ?: -102.5832,
                     onVerDetalle = onVerDetalle,
-                    onReportar = onReportar,
                     onIrAHistorial = onIrAHistorial
                 )
             }
