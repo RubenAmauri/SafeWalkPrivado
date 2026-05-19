@@ -22,6 +22,10 @@ import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.NivelAgresividad
 import com.safewalk.app.viewmodel.FeedViewModel
 import com.safewalk.app.util.formatearFecha
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.ui.unit.sp
+import com.safewalk.app.viewmodel.ValidacionViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun FeedScreen(
@@ -29,7 +33,6 @@ fun FeedScreen(
     latitud: Double,
     longitud: Double,
     onVerDetalle: (Avistamiento) -> Unit,
-    onReportar: (Avistamiento) -> Unit,
     onIrAHistorial: () -> Unit
 ) {
     val avistamientos by viewModel.avistamientos.collectAsState()
@@ -181,8 +184,21 @@ fun FeedScreen(
 @Composable
 fun ReporteItem(
     avistamiento: Avistamiento,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    validacionViewModel: ValidacionViewModel = viewModel()
 ) {
+    val validaciones by validacionViewModel.validaciones.collectAsState()
+    val cargando by validacionViewModel.cargando.collectAsState()
+    val yaValido = validaciones[avistamiento.id] ?: false
+    val estaCargando = avistamiento.id in cargando
+    val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
+    val contadores by validacionViewModel.contadores.collectAsState()
+    val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
+
+    LaunchedEffect(avistamiento.id) {
+        validacionViewModel.cargarValidacion(avistamiento.id, avistamiento.totalConfirmaciones)
+    }
+
     val colorNivel = when (avistamiento.nivelAgresividad) {
         NivelAgresividad.BAJO -> Color(0xFF4CAF50)
         NivelAgresividad.MEDIO -> Color(0xFFFF9800)
@@ -197,38 +213,100 @@ fun ReporteItem(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            Text(
-                text = avistamiento.ubicacionAproximada,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(avistamiento.descripcion)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = formatearFecha(avistamiento.fechaCreacion),
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 🔥 BOTÓN COMENTARIOS (CLAVE CU-06)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = avistamiento.ubicacionAproximada,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    color = colorNivel.copy(alpha = 0.15f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = when (avistamiento.nivelAgresividad) {
+                            NivelAgresividad.BAJO -> "Bajo"
+                            NivelAgresividad.MEDIO -> "Medio"
+                            NivelAgresividad.ALTO -> "Alto"
+                        },
+                        color = colorNivel,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
 
-                Row {
-                    Icon(Icons.Default.Report, contentDescription = null)
-                    Text(" ${avistamiento.totalConfirmaciones}")
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(avistamiento.descripcion, maxLines = 2)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = formatearFecha(avistamiento.fechaCreacion),
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Validaciones
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (estaCargando) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(
+                            onClick = {
+                                if (!esPropio) {
+                                    validacionViewModel.toggleValidacion(avistamiento.id)
+                                }
+                            },
+                            enabled = !esPropio
+                        ) {
+                            Icon(
+                                imageVector = if (yaValido)
+                                    Icons.Default.CheckCircle
+                                else
+                                    Icons.Default.CheckCircle,
+                                contentDescription = "Validar",
+                                tint = when {
+                                    esPropio -> Color.Gray.copy(alpha = 0.4f)
+                                    yaValido -> Color(0xFF4CAF50)
+                                    else -> Color.Gray
+                                }
+                            )
+                        }
+                    }
+                    Text(
+                        text = "$contador",
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
                 }
 
+                // Comentarios
                 Row(
-                    modifier = Modifier.clickable { onClick() }
+                    modifier = Modifier.clickable { onClick() },
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Comment, contentDescription = null)
-                    Text(" Comentarios")
+                    Icon(
+                        Icons.Default.Comment,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Comentar", fontSize = 13.sp, color = Color.Gray)
                 }
             }
         }
