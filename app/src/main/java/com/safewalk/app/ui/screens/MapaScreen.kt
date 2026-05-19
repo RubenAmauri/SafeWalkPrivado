@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -83,6 +85,14 @@ fun MapaScreen(
         ) {
             zonas.forEach { zona ->
                 val color = colorZona(zona.nivelPromedio)
+                val ubicacionPendiente by mapaViewModel.ubicacionPendiente.collectAsState()
+
+                LaunchedEffect(ubicacionPendiente) {
+                    ubicacionPendiente?.let { (lat, lng) ->
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 17f))
+                        mapaViewModel.consumirUbicacionPendiente()
+                    }
+                }
                 Circle(
                     center = zona.centro,
                     radius = 600.0,
@@ -113,18 +123,39 @@ fun MapaScreen(
                 if (tienePermiso) {
                     val fusedLocation = LocationServices.getFusedLocationProviderClient(context)
                     fusedLocation.lastLocation.addOnSuccessListener { location ->
-                        location?.let {
-                            val pos = LatLng(it.latitude, it.longitude)
+                        if (location != null) {
+                            val pos = LatLng(location.latitude, location.longitude)
                             cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(pos, 15f))
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "No se pudo obtener la ubicación actual",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 } else {
-                    launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(
+                            context as androidx.activity.ComponentActivity,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        )
+                    ) {
+                        launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Activa el permiso de ubicación en Ajustes para usar esta función",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = if (zonaSeleccionada != null) 300.dp else 16.dp, end = 16.dp),
+                .align(Alignment.BottomStart)
+                .padding(
+                    bottom = if (zonaSeleccionada != null) 300.dp else 80.dp,
+                    start = 16.dp
+                ),
             containerColor = Color(0xFF1F3864)
         ) {
             Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación", tint = Color.White)

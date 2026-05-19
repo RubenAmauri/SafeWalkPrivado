@@ -87,6 +87,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Supabase y dependencias adicionales
     implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
@@ -98,4 +99,5 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("com.russhwolf:multiplatform-settings:1.1.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
 }
