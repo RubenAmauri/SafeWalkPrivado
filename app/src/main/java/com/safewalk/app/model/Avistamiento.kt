@@ -20,6 +20,8 @@ data class Avistamiento(
     val ubicacionAproximada: String = "",
     @SerialName("usuario_id")
     val usuarioId: String = "",
+    @SerialName("total_ya_no_esta")
+    val totalYaNoEsta: Int = 0,
 )
 
 @Serializable
@@ -44,4 +46,15 @@ data class AvistamientoInsert(
 data class FotoInsert(
     @SerialName("avistamiento_id") val avistamientoId: String,
     val url: String
+)
+@Serializable
+data class IncrementarContadorParams(
+    val id: String,
+    val delta: Int
+)
+
+@Serializable
+data class IncrementarYaNoEstaParams(
+    val id: String,
+    val delta: Int
 )

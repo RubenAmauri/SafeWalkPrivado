@@ -5,10 +5,13 @@ import com.safewalk.app.SupabaseClient
 import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.AvistamientoInsert
 import com.safewalk.app.model.FotoInsert
+import com.safewalk.app.model.IncrementarContadorParams
+import com.safewalk.app.model.IncrementarYaNoEstaParams
 import com.safewalk.app.model.NivelAgresividad
 import com.safewalk.app.model.ZonaAvistamiento
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlin.math.*
 
@@ -187,46 +190,8 @@ object AvistamientoRepository {
             emptyList()
         }
     }
-    suspend fun validarAvistamiento(avistamientoId: String, usuarioId: String) {
-        SupabaseClient.client.postgrest
-            .from("validaciones")
-            .insert(mapOf(
-                "avistamiento_id" to avistamientoId,
-                "usuario_id" to usuarioId,
-                "tipo" to "sigue_ahi"
-            ))
-        val actual = SupabaseClient.client.postgrest
-            .from("avistamientos")
-            .select { filter { eq("avistamiento_id", avistamientoId) } }
-            .decodeSingle<Avistamiento>().totalConfirmaciones
-        SupabaseClient.client.postgrest
-            .from("avistamientos")
-            .update({ set("total_confirmaciones", actual + 1) }) {
-                filter { eq("avistamiento_id", avistamientoId) }
-            }
-    }
 
-    suspend fun retirarValidacion(avistamientoId: String, usuarioId: String) {
-        SupabaseClient.client.postgrest
-            .from("validaciones")
-            .delete {
-                filter {
-                    eq("avistamiento_id", avistamientoId)
-                    eq("usuario_id", usuarioId)
-                }
-            }
-        val actual = SupabaseClient.client.postgrest
-            .from("avistamientos")
-            .select { filter { eq("avistamiento_id", avistamientoId) } }
-            .decodeSingle<Avistamiento>().totalConfirmaciones
-        SupabaseClient.client.postgrest
-            .from("avistamientos")
-            .update({ set("total_confirmaciones", maxOf(0, actual - 1)) }) {
-                filter { eq("avistamiento_id", avistamientoId) }
-            }
-    }
-
-    suspend fun obtenerValidacionUsuario(avistamientoId: String, usuarioId: String): Boolean {
+    suspend fun obtenerValidacionUsuario(avistamientoId: String, usuarioId: String): String? {
         return try {
             val resultado = SupabaseClient.client.postgrest
                 .from("validaciones")
@@ -237,9 +202,68 @@ object AvistamientoRepository {
                     }
                 }
                 .decodeList<Map<String, String>>()
-            resultado.isNotEmpty()
+            resultado.firstOrNull()?.get("tipo")
         } catch (e: Exception) {
-            false
+            null
+        }
+    }
+
+    suspend fun registrarValidacion(avistamientoId: String, usuarioId: String, tipo: String) {
+        // Upsert — si ya existe una validación del usuario, la reemplaza
+        SupabaseClient.client.postgrest
+            .from("validaciones")
+            .upsert(mapOf(
+                "avistamiento_id" to avistamientoId,
+                "usuario_id" to usuarioId,
+                "tipo" to tipo
+            )) {
+                onConflict = "avistamiento_id,usuario_id"
+            }
+    }
+
+    suspend fun eliminarValidacion(avistamientoId: String, usuarioId: String) {
+        SupabaseClient.client.postgrest
+            .from("validaciones")
+            .delete {
+                filter {
+                    eq("avistamiento_id", avistamientoId)
+                    eq("usuario_id", usuarioId)
+                }
+            }
+    }
+
+    suspend fun getContadorConfirmaciones(avistamientoId: String): Int {
+        return try {
+            SupabaseClient.client.postgrest
+                .from("avistamientos")
+                .select { filter { eq("avistamiento_id", avistamientoId) } }
+                .decodeSingle<Avistamiento>().totalConfirmaciones
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    suspend fun actualizarContador(avistamientoId: String, incremento: Int) {
+        try {
+            SupabaseClient.client.postgrest.rpc(
+                "incrementar_confirmaciones",
+                IncrementarContadorParams(id = avistamientoId, delta = incremento)
+            )
+            android.util.Log.d("SafeWalk", "actualizarContador: id=$avistamientoId delta=$incremento")
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error en actualizarContador: ${e.message}", e)
+        }
+    }
+
+    suspend fun actualizarContadorYaNoEsta(avistamientoId: String, incremento: Int) {
+        try {
+            SupabaseClient.client.postgrest.rpc(
+                "incrementar_ya_no_esta",
+                IncrementarYaNoEstaParams(id = avistamientoId, delta = incremento)
+            )
+            android.util.Log.d("SafeWalk", "actualizarContadorYaNoEsta: id=$avistamientoId delta=$incremento")
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error en actualizarContadorYaNoEsta: ${e.message}", e)
         }
     }
 }

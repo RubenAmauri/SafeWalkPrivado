@@ -11,40 +11,79 @@ import kotlinx.coroutines.launch
 
 class ValidacionViewModel : ViewModel() {
 
-    private val _validaciones = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val validaciones: StateFlow<Map<String, Boolean>> = _validaciones
+    private val _validaciones = MutableStateFlow<Map<String, String?>>(emptyMap())
+    val validaciones: StateFlow<Map<String, String?>> = _validaciones
 
     private val _contadores = MutableStateFlow<Map<String, Int>>(emptyMap())
     val contadores: StateFlow<Map<String, Int>> = _contadores
 
+    private val _contadoresYaNoEsta = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val contadoresYaNoEsta: StateFlow<Map<String, Int>> = _contadoresYaNoEsta
+
     private val _cargando = MutableStateFlow<Set<String>>(emptySet())
     val cargando: StateFlow<Set<String>> = _cargando
 
-    fun cargarValidacion(avistamientoId: String, contadorInicial: Int) {
+    fun cargarValidacion(avistamientoId: String, contadorInicial: Int, contadorYaNoEstaInicial: Int = 0) {
         viewModelScope.launch {
             val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return@launch
-            val yaValido = AvistamientoRepository.obtenerValidacionUsuario(avistamientoId, uid)
-            _validaciones.value = _validaciones.value + (avistamientoId to yaValido)
-            _contadores.value = _contadores.value + (avistamientoId to contadorInicial)
+            val tipo = AvistamientoRepository.obtenerValidacionUsuario(avistamientoId, uid)
+            _validaciones.value = _validaciones.value + (avistamientoId to tipo)
+            // Solo inicializar si no tenemos ya un valor local
+            if (!_contadores.value.containsKey(avistamientoId)) {
+                _contadores.value = _contadores.value + (avistamientoId to contadorInicial)
+            }
+            if (!_contadoresYaNoEsta.value.containsKey(avistamientoId)) {
+                _contadoresYaNoEsta.value = _contadoresYaNoEsta.value + (avistamientoId to contadorYaNoEstaInicial)
+            }
         }
     }
 
-    fun toggleValidacion(avistamientoId: String) {
+    fun registrarOToggle(avistamientoId: String, tipo: String) {
         viewModelScope.launch {
             val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return@launch
-            val yaValido = _validaciones.value[avistamientoId] ?: false
-            val contadorActual = _contadores.value[avistamientoId] ?: 0
+            val tipoActual = _validaciones.value[avistamientoId]
+            val contadorSigueAhi = _contadores.value[avistamientoId] ?: 0
+            val contadorYaNoEsta = _contadoresYaNoEsta.value[avistamientoId] ?: 0
 
             _cargando.value = _cargando.value + avistamientoId
             try {
-                if (yaValido) {
-                    AvistamientoRepository.retirarValidacion(avistamientoId, uid)
-                    _validaciones.value = _validaciones.value + (avistamientoId to false)
-                    _contadores.value = _contadores.value + (avistamientoId to maxOf(0, contadorActual - 1))
+                if (tipoActual == tipo) {
+                    // Retirar validación
+                    AvistamientoRepository.eliminarValidacion(avistamientoId, uid)
+                    _validaciones.value = _validaciones.value + (avistamientoId to null)
+                    if (tipo == "sigue_ahi") {
+                        AvistamientoRepository.actualizarContador(avistamientoId, -1)
+                        _contadores.value = _contadores.value + (avistamientoId to maxOf(0, contadorSigueAhi - 1))
+                    } else {
+                        AvistamientoRepository.actualizarContadorYaNoEsta(avistamientoId, -1)
+                        _contadoresYaNoEsta.value = _contadoresYaNoEsta.value + (avistamientoId to maxOf(0, contadorYaNoEsta - 1))
+                    }
                 } else {
-                    AvistamientoRepository.validarAvistamiento(avistamientoId, uid)
-                    _validaciones.value = _validaciones.value + (avistamientoId to true)
-                    _contadores.value = _contadores.value + (avistamientoId to contadorActual + 1)
+                    // Cambiar o agregar validación
+                    AvistamientoRepository.registrarValidacion(avistamientoId, uid, tipo)
+                    _validaciones.value = _validaciones.value + (avistamientoId to tipo)
+
+                    // Si cambia de tipo, ajustar ambos contadores
+                    if (tipoActual == "sigue_ahi") {
+                        AvistamientoRepository.actualizarContador(avistamientoId, -1)
+                        _contadores.value = _contadores.value + (avistamientoId to maxOf(0, contadorSigueAhi - 1))
+                        AvistamientoRepository.actualizarContadorYaNoEsta(avistamientoId, 1)
+                        _contadoresYaNoEsta.value = _contadoresYaNoEsta.value + (avistamientoId to contadorYaNoEsta + 1)
+                    } else if (tipoActual == "ya_no_esta") {
+                        AvistamientoRepository.actualizarContadorYaNoEsta(avistamientoId, -1)
+                        _contadoresYaNoEsta.value = _contadoresYaNoEsta.value + (avistamientoId to maxOf(0, contadorYaNoEsta - 1))
+                        AvistamientoRepository.actualizarContador(avistamientoId, 1)
+                        _contadores.value = _contadores.value + (avistamientoId to contadorSigueAhi + 1)
+                    } else {
+                        // Primera vez
+                        if (tipo == "sigue_ahi") {
+                            AvistamientoRepository.actualizarContador(avistamientoId, 1)
+                            _contadores.value = _contadores.value + (avistamientoId to contadorSigueAhi + 1)
+                        } else {
+                            AvistamientoRepository.actualizarContadorYaNoEsta(avistamientoId, 1)
+                            _contadoresYaNoEsta.value = _contadoresYaNoEsta.value + (avistamientoId to contadorYaNoEsta + 1)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("SafeWalk", "Error al validar: ${e.message}", e)

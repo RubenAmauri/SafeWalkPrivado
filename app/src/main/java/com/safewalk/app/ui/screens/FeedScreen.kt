@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.Report
@@ -189,14 +190,19 @@ fun ReporteItem(
 ) {
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargando by validacionViewModel.cargando.collectAsState()
-    val yaValido = validaciones[avistamiento.id] ?: false
+    val tipoValidacion = validaciones[avistamiento.id]
+    val yaValido = tipoValidacion == "sigue_ahi"
     val estaCargando = avistamiento.id in cargando
     val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
     val contadores by validacionViewModel.contadores.collectAsState()
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
 
     LaunchedEffect(avistamiento.id) {
-        validacionViewModel.cargarValidacion(avistamiento.id, avistamiento.totalConfirmaciones)
+        validacionViewModel.cargarValidacion(
+            avistamiento.id,
+            avistamiento.totalConfirmaciones,
+            avistamiento.totalYaNoEsta
+        )
     }
 
     val colorNivel = when (avistamiento.nivelAgresividad) {
@@ -257,41 +263,60 @@ fun ReporteItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Validaciones
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (estaCargando) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
+                // Contadores de validación
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Sigue ahí
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (estaCargando) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        } else {
+                            IconButton(
+                                onClick = { if (!esPropio) validacionViewModel.registrarOToggle(avistamiento.id, "sigue_ahi") },
+                                enabled = !esPropio,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Validar",
+                                    tint = when {
+                                        esPropio -> Color.Gray.copy(alpha = 0.4f)
+                                        tipoValidacion == "sigue_ahi" -> Color(0xFF4CAF50)
+                                        else -> Color.Gray
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Text(text = "$contador", fontSize = 12.sp, color = Color.Gray)
+                    }
+
+                    // Ya no está
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = {
-                                if (!esPropio) {
-                                    validacionViewModel.toggleValidacion(avistamiento.id)
-                                }
-                            },
-                            enabled = !esPropio
+                            onClick = { if (!esPropio) validacionViewModel.registrarOToggle(avistamiento.id, "ya_no_esta") },
+                            enabled = !esPropio,
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                imageVector = if (yaValido)
-                                    Icons.Default.CheckCircle
-                                else
-                                    Icons.Default.CheckCircle,
-                                contentDescription = "Validar",
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "Ya no está",
                                 tint = when {
                                     esPropio -> Color.Gray.copy(alpha = 0.4f)
-                                    yaValido -> Color(0xFF4CAF50)
+                                    tipoValidacion == "ya_no_esta" -> Color(0xFFF44336)
                                     else -> Color.Gray
-                                }
+                                },
+                                modifier = Modifier.size(18.dp)
                             )
                         }
+                        Text(
+                            text = "${avistamiento.totalYaNoEsta}",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
                     }
-                    Text(
-                        text = "$contador",
-                        fontSize = 13.sp,
-                        color = Color.Gray
-                    )
                 }
 
                 // Comentarios
@@ -303,10 +328,10 @@ fun ReporteItem(
                         Icons.Default.Comment,
                         contentDescription = null,
                         tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Comentar", fontSize = 13.sp, color = Color.Gray)
+                    Text("Comentar", fontSize = 12.sp, color = Color.Gray)
                 }
             }
         }
