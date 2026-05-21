@@ -6,6 +6,7 @@ import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.AvistamientoInsert
 import com.safewalk.app.model.Comentario
 import com.safewalk.app.model.ComentarioInsert
+import com.safewalk.app.model.Compartido
 import com.safewalk.app.model.FotoInsert
 import com.safewalk.app.model.IncrementarContadorParams
 import com.safewalk.app.model.IncrementarYaNoEstaParams
@@ -316,4 +317,46 @@ object AvistamientoRepository {
             android.util.Log.e("SafeWalk", "Error al registrar compartido: ${e.message}", e)
         }
     }
+    suspend fun getMisReportes(uid: String): List<Avistamiento> {
+        return try {
+            SupabaseClient.client.postgrest
+                .from("avistamientos")
+                .select { filter { eq("usuario_id", uid) } }
+                .decodeList<Avistamiento>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error getMisReportes: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getComentariosCountPorReporte(ids: List<String>): Map<String, Int> {
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            SupabaseClient.client.postgrest
+                .from("comentarios")
+                .select { filter { isIn("avistamiento_id", ids) } }
+                .decodeList<Comentario>()
+                .groupBy { it.avistamientoId }
+                .mapValues { it.value.size }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error getComentariosCount: ${e.message}", e)
+            emptyMap()
+        }
+    }
+
+    suspend fun getCompartidosCountPorReporte(ids: List<String>): Map<String, Int> {
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            SupabaseClient.client.postgrest
+                .from("compartidos")
+                .select { filter { isIn("avistamiento_id", ids) } }
+                .decodeList<Compartido>()
+                .groupBy { it.avistamientoId }
+                .mapValues { it.value.size }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error getCompartidosCount: ${e.message}", e)
+            emptyMap()
+        }
+    }
 }
+

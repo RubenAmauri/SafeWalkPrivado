@@ -58,3 +58,8 @@ data class IncrementarYaNoEstaParams(
     val id: String,
     val delta: Int
 )
+@Serializable
+data class Compartido(
+    @SerialName("avistamiento_id") val avistamientoId: String = "",
+    @SerialName("usuario_id") val usuarioId: String = ""
+)

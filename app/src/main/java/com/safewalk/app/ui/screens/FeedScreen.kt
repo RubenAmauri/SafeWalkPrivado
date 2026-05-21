@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Comment
@@ -35,7 +36,8 @@ fun FeedScreen(
     latitud: Double,
     longitud: Double,
     onVerDetalle: (Avistamiento) -> Unit,
-    onIrAHistorial: () -> Unit
+    onIrAHistorial: () -> Unit,
+    onIrADashboard: () -> Unit
 ) {
     val avistamientos by viewModel.avistamientos.collectAsState()
     val cargando by viewModel.cargando.collectAsState()
@@ -75,6 +77,15 @@ fun FeedScreen(
                         TextButton(onClick = { viewModel.limpiarFiltros() }) {
                             Text("Limpiar", color = Color.White.copy(alpha = 0.8f))
                         }
+                    }
+
+                    // Dashboard
+                    IconButton(onClick = onIrADashboard) {
+                        Icon(
+                            Icons.Default.BarChart,
+                            contentDescription = "Mi actividad",
+                            tint = Color.White
+                        )
                     }
 
                     // 🔥 HISTORIAL

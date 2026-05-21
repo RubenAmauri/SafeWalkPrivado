@@ -57,7 +57,8 @@ fun SafeWalkNavigation(
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
                 },
-                onIrAHistorial = { navController.navigate("historial") }
+                onIrAHistorial = { navController.navigate("historial") },
+                onIrADashboard = { navController.navigate("dashboard") }
             )
         }
 
@@ -134,6 +135,14 @@ fun SafeWalkNavigation(
                 }
             )
         }
+        composable("dashboard") {
+            val dashboardViewModel: DashboardViewModel = viewModel()
+            DashboardScreen(
+                viewModel = dashboardViewModel,
+                onRegresar = { navController.popBackStack() },
+                onVerHistorial = { navController.navigate("historial") }
+            )
+        }
     }
 }
 
@@ -145,7 +154,8 @@ private fun PantallasPrincipales(
     validacionViewModel: ValidacionViewModel,
     onCrearReporte: () -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
-    onIrAHistorial: () -> Unit
+    onIrAHistorial: () -> Unit,
+    onIrADashboard: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
     var ubicacionActual by remember { mutableStateOf<LatLng?>(null) }
@@ -202,7 +212,8 @@ private fun PantallasPrincipales(
                     latitud = ubicacionActual?.latitude ?: 22.7709,
                     longitud = ubicacionActual?.longitude ?: -102.5832,
                     onVerDetalle = onVerDetalle,
-                    onIrAHistorial = onIrAHistorial
+                    onIrAHistorial = onIrAHistorial,
+                    onIrADashboard = onIrADashboard
                 )
             }
         }
