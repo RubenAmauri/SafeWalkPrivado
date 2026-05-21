@@ -303,4 +303,17 @@ object AvistamientoRepository {
             null
         }
     }
+    suspend fun registrarCompartido(avistamientoId: String) {
+        try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return
+            SupabaseClient.client.postgrest
+                .from("compartidos")
+                .insert(mapOf(
+                    "avistamiento_id" to avistamientoId,
+                    "usuario_id" to uid
+                ))
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al registrar compartido: ${e.message}", e)
+        }
+    }
 }

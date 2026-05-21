@@ -26,6 +26,10 @@ import com.safewalk.app.util.formatearFecha
 import com.safewalk.app.viewmodel.ComentarioViewModel
 import androidx.compose.material.icons.filled.CheckCircle
 import com.safewalk.app.viewmodel.ValidacionViewModel
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @Composable
 fun DetalleAvistamientoScreen(
@@ -49,6 +53,8 @@ fun DetalleAvistamientoScreen(
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
     val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
     val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(avistamiento.id) {
         viewModel.cargarComentarios(avistamiento.id)
@@ -99,8 +105,50 @@ fun DetalleAvistamientoScreen(
                         text = "Detalle del avistamiento",
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = {
+                        val nivel = when (avistamiento.nivelAgresividad) {
+                            NivelAgresividad.BAJO -> "Bajo"
+                            NivelAgresividad.MEDIO -> "Medio"
+                            NivelAgresividad.ALTO -> "Alto"
+                        }
+                        val texto = """
+                            🐕 Avistamiento de jauría - SafeWalk
+                            📍 ${avistamiento.ubicacionAproximada}
+                            ⚠️ Nivel de agresividad: $nivel
+                            📝 ${avistamiento.descripcion}
+                            🕐 ${formatearFecha(avistamiento.fechaCreacion)}
+                            ✅ $contador confirmaciones | ❌ $contadorYaNoEsta invalidaciones
+                            🗺️ https://maps.google.com/?q=${avistamiento.latitud},${avistamiento.longitud}
+    
+                            Reportado en SafeWalk. ¡Ten cuidado al pasar por esta zona!
+                        """.trimIndent()
+
+                        val intent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, texto)
+                                setPackage("com.whatsapp")
+                            }
+
+                        try {
+                            context.startActivity(intent)
+                            scope.launch {
+                                AvistamientoRepository.registrarCompartido(avistamiento.id)
+                            }
+                        } catch (e: android.content.ActivityNotFoundException) {
+                            Toast.makeText(context, "Acción no disponible", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Compartir",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -143,7 +191,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Descripción
-                    Text("Descripción", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Descripción",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(avistamiento.descripcion, fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -151,7 +204,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Ubicación — toca para ver en mapa
-                    Text("Ubicación", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Ubicación",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -177,7 +235,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Fecha
-                    Text("Fecha y hora", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Fecha y hora",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(formatearFecha(avistamiento.fechaCreacion), fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -185,7 +248,12 @@ fun DetalleAvistamientoScreen(
 
                 //Validaciones
                 item {
-                    Text("Validaciones", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Validaciones",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -195,7 +263,10 @@ fun DetalleAvistamientoScreen(
                         // Confirmaciones
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (estaCargandoValidacion) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
@@ -216,7 +287,11 @@ fun DetalleAvistamientoScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("$contadorYaNoEsta invalidaciones", fontSize = 14.sp, color = Color(0xFFF44336))
+                            Text(
+                                "$contadorYaNoEsta invalidaciones",
+                                fontSize = 14.sp,
+                                color = Color(0xFFF44336)
+                            )
                         }
                     }
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -225,7 +300,12 @@ fun DetalleAvistamientoScreen(
                 // Fotos
                 if (fotos.isNotEmpty()) {
                     item {
-                        Text("Fotos", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                        Text(
+                            "Fotos",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     items(fotos) { url ->
@@ -282,14 +362,24 @@ fun DetalleAvistamientoScreen(
                     ) {
                         // Botón Sigue ahí
                         OutlinedButton(
-                            onClick = { validacionViewModel.registrarOToggle(avistamiento.id, "sigue_ahi") },
+                            onClick = {
+                                validacionViewModel.registrarOToggle(
+                                    avistamiento.id,
+                                    "sigue_ahi"
+                                )
+                            },
                             modifier = Modifier.weight(1f),
                             enabled = !estaCargandoValidacion,
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = if (tipoValidacion == "sigue_ahi") Color(0xFF4CAF50) else Color.Transparent,
-                                contentColor = if (tipoValidacion == "sigue_ahi") Color.White else Color(0xFF4CAF50)
+                                contentColor = if (tipoValidacion == "sigue_ahi") Color.White else Color(
+                                    0xFF4CAF50
+                                )
                             ),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF4CAF50))
+                            border = androidx.compose.foundation.BorderStroke(
+                                2.dp,
+                                Color(0xFF4CAF50)
+                            )
                         ) {
                             Text(
                                 text = if (tipoValidacion == "sigue_ahi") "✓ Sigue ahí (${contador})" else "Sigue ahí (${contador})",
@@ -300,14 +390,26 @@ fun DetalleAvistamientoScreen(
 
                         // Botón Ya no está
                         OutlinedButton(
-                            onClick = { validacionViewModel.registrarOToggle(avistamiento.id, "ya_no_esta") },
+                            onClick = {
+                                validacionViewModel.registrarOToggle(
+                                    avistamiento.id,
+                                    "ya_no_esta"
+                                )
+                            },
                             modifier = Modifier.weight(1f),
                             enabled = !estaCargandoValidacion,
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (tipoValidacion == "ya_no_esta") Color(0xFFF44336) else Color.Transparent,
-                                contentColor = if (tipoValidacion == "ya_no_esta") Color.White else Color(0xFFF44336)
+                                containerColor = if (tipoValidacion == "ya_no_esta") Color(
+                                    0xFFF44336
+                                ) else Color.Transparent,
+                                contentColor = if (tipoValidacion == "ya_no_esta") Color.White else Color(
+                                    0xFFF44336
+                                )
                             ),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFF44336))
+                            border = androidx.compose.foundation.BorderStroke(
+                                2.dp,
+                                Color(0xFFF44336)
+                            )
                         ) {
                             Text(
                                 text = if (tipoValidacion == "ya_no_esta") "✗ Ya no está (${contadorYaNoEsta})" else "Ya no está (${contadorYaNoEsta})",
