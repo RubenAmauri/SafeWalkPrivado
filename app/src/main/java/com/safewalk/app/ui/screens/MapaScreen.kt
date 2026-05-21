@@ -95,6 +95,14 @@ fun MapaScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
+        val ubicacionPendiente by mapaViewModel.ubicacionPendiente.collectAsState()
+        LaunchedEffect(ubicacionPendiente) {
+            ubicacionPendiente?.let { (lat, lng) ->
+                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 17f))
+                mapaViewModel.consumirUbicacionPendiente()
+            }
+        }
+
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
@@ -103,14 +111,6 @@ fun MapaScreen(
         ) {
             zonas.forEach { zona ->
                 val color = colorZona(zona.nivelPromedio)
-                val ubicacionPendiente by mapaViewModel.ubicacionPendiente.collectAsState()
-
-                LaunchedEffect(ubicacionPendiente) {
-                    ubicacionPendiente?.let { (lat, lng) ->
-                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 17f))
-                        mapaViewModel.consumirUbicacionPendiente()
-                    }
-                }
                 Circle(
                     center = zona.centro,
                     radius = 600.0,

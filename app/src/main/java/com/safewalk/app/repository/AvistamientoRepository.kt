@@ -17,6 +17,7 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlin.math.*
+import com.safewalk.app.model.FotoInfo
 
 object AvistamientoRepository {
 
@@ -80,23 +81,30 @@ object AvistamientoRepository {
     fun getZonas(avistamientos: List<Avistamiento>): List<ZonaAvistamiento> {
         val radioAgrupacion = 1500.0
         val grupos = mutableListOf<MutableList<Avistamiento>>()
+        val sumLat = mutableListOf<Double>()
+        val sumLng = mutableListOf<Double>()
 
         for (avistamiento in avistamientos) {
-            val grupoExistente = grupos.firstOrNull { grupo ->
-                val centroLat = grupo.map { it.latitud }.average()
-                val centroLng = grupo.map { it.longitud }.average()
-                distanciaMetros(centroLat, centroLng, avistamiento.latitud, avistamiento.longitud) < radioAgrupacion
+            val index = grupos.indices.firstOrNull { i ->
+                val n = grupos[i].size.toDouble()
+                distanciaMetros(sumLat[i] / n, sumLng[i] / n, avistamiento.latitud, avistamiento.longitud) < radioAgrupacion
             }
-            if (grupoExistente != null) grupoExistente.add(avistamiento)
-            else grupos.add(mutableListOf(avistamiento))
+            if (index != null) {
+                grupos[index].add(avistamiento)
+                sumLat[index] += avistamiento.latitud
+                sumLng[index] += avistamiento.longitud
+            } else {
+                grupos.add(mutableListOf(avistamiento))
+                sumLat.add(avistamiento.latitud)
+                sumLng.add(avistamiento.longitud)
+            }
         }
 
         return grupos.mapIndexed { index, grupo ->
-            val centroLat = grupo.map { it.latitud }.average()
-            val centroLng = grupo.map { it.longitud }.average()
+            val n = grupo.size.toDouble()
             ZonaAvistamiento(
                 id = "zona_$index",
-                centro = LatLng(centroLat, centroLng),
+                centro = LatLng(sumLat[index] / n, sumLng[index] / n),
                 avistamientos = grupo,
                 nivelPromedio = calcularNivelPromedio(grupo)
             )
@@ -252,7 +260,6 @@ object AvistamientoRepository {
                 "incrementar_confirmaciones",
                 IncrementarContadorParams(id = avistamientoId, delta = incremento)
             )
-            android.util.Log.d("SafeWalk", "actualizarContador: id=$avistamientoId delta=$incremento")
         } catch (e: Exception) {
             android.util.Log.e("SafeWalk", "Error en actualizarContador: ${e.message}", e)
         }
@@ -264,7 +271,6 @@ object AvistamientoRepository {
                 "incrementar_ya_no_esta",
                 IncrementarYaNoEstaParams(id = avistamientoId, delta = incremento)
             )
-            android.util.Log.d("SafeWalk", "actualizarContadorYaNoEsta: id=$avistamientoId delta=$incremento")
         } catch (e: Exception) {
             android.util.Log.e("SafeWalk", "Error en actualizarContadorYaNoEsta: ${e.message}", e)
         }
@@ -358,5 +364,57 @@ object AvistamientoRepository {
             emptyMap()
         }
     }
+    suspend fun getFotosConId(avistamientoId: String): List<FotoInfo> {
+        return try {
+            SupabaseClient.client.postgrest
+                .from("fotos")
+                .select { filter { eq("avistamiento_id", avistamientoId) } }
+                .decodeList<FotoInfo>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error getFotosConId: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun eliminarFoto(fotoId: String, avistamientoId: String, usuarioId: String) {
+        try {
+            SupabaseClient.client.postgrest
+                .from("fotos")
+                .delete { filter { eq("foto_id", fotoId) } }
+            try {
+                SupabaseClient.client.storage
+                    .from("fotos-avistamientos")
+                    .delete(listOf("$usuarioId/$avistamientoId.jpg"))
+            } catch (e: Exception) {
+                android.util.Log.w("SafeWalk", "No se pudo eliminar del storage: ${e.message}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error eliminarFoto: ${e.message}", e)
+        }
+    }
+
+    suspend fun editarAvistamientoCompleto(
+        avistamientoId: String,
+        descripcion: String,
+        agresividad: String,
+        ubicacionAproximada: String,
+        latitud: Double,
+        longitud: Double
+    ) {
+        SupabaseClient.client.postgrest
+            .from("avistamientos")
+            .update({
+                set("descripcion", descripcion)
+                set("agresividad", agresividad)
+                set("ubicacion_aproximada", ubicacionAproximada)
+                set("latitud", latitud)
+                set("longitud", longitud)
+                set("ubicacion", "POINT($longitud $latitud)")
+                set("fecha_actualizacion", java.util.Date().toInstant().toString())
+            }) {
+                filter { eq("avistamiento_id", avistamientoId) }
+            }
+    }
+
 }
 

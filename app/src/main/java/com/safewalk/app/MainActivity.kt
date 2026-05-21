@@ -37,11 +37,13 @@ fun SafeWalkNavigation(
     mapaViewModel: MapaViewModel = viewModel(),
     feedViewModel: FeedViewModel = viewModel(),
     crearViewModel: CrearAvistamientoViewModel = viewModel(),
-    validacionViewModel: ValidacionViewModel = viewModel()
+    validacionViewModel: ValidacionViewModel = viewModel(),
+    historialViewModel: HistorialViewModel = viewModel()
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
     var ubicacionReporte by remember { mutableStateOf<LatLng?>(null) }
+    var ubicacionEdicion by remember { mutableStateOf<LatLng?>(null) }
 
     val session by SupabaseClient.client.auth.sessionStatus.collectAsState()
 
@@ -129,7 +131,6 @@ fun SafeWalkNavigation(
         }
 
         composable("historial") {
-            val historialViewModel: HistorialViewModel = viewModel()
             val inactivosIds by feedViewModel.inactivosIds.collectAsState()
             HistorialScreen(
                 viewModel = historialViewModel,
@@ -141,6 +142,11 @@ fun SafeWalkNavigation(
                 onVerDetalle = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
+                },
+                onEditar = { avistamiento ->
+                    ubicacionEdicion = null
+                    historialViewModel.seleccionarParaEditar(avistamiento)
+                    navController.navigate("editar_reporte")
                 }
             )
         }
@@ -154,6 +160,33 @@ fun SafeWalkNavigation(
                     feedViewModel.setInactivosIds(ids)
                     navController.navigate("historial")
                 }
+            )
+        }
+        composable("editar_reporte") {
+            val avistamiento = historialViewModel.avistamientoParaEditar.collectAsState().value
+            avistamiento?.let {
+                EditarAvistamientoScreen(
+                    avistamiento = it,
+                    viewModel = historialViewModel,
+                    ubicacionPreseleccionada = ubicacionEdicion,
+                    onSeleccionarUbicacion = {
+                        navController.navigate("seleccionar_ubicacion_edicion")
+                    },
+                    onRegresar = {
+                        ubicacionEdicion = null
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        composable("seleccionar_ubicacion_edicion") {
+            SeleccionarUbicacionScreen(
+                onUbicacionSeleccionada = {
+                    ubicacionEdicion = it
+                    navController.popBackStack()
+                },
+                onRegresar = { navController.popBackStack() }
             )
         }
     }

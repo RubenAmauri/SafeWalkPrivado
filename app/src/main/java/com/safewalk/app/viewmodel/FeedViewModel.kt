@@ -12,6 +12,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
+private val MILLIS_REGEX = Regex("\\.\\d+")
+private val feedDateFormat = ThreadLocal.withInitial {
+    java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", java.util.Locale.US).also {
+        it.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
+}
+
 class FeedViewModel : ViewModel() {
 
     private val _avistamientos = MutableStateFlow<List<Avistamiento>>(emptyList())
@@ -58,14 +65,13 @@ class FeedViewModel : ViewModel() {
 
         if (recientes) {
             val hace12h = System.currentTimeMillis() - 12 * 60 * 60 * 1000
+            val sdf = feedDateFormat.get()!!
             resultado = resultado.filter { avistamiento ->
                 try {
                     val normalizada = avistamiento.fechaCreacion
-                        .replace(Regex("\\.\\d+"), "")
+                        .replace(MILLIS_REGEX, "")
                         .replace("+00:00", "+0000")
                         .replace("Z", "+0000")
-                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", java.util.Locale.US)
-                    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
                     val fecha = sdf.parse(normalizada)
                     fecha != null && fecha.time >= hace12h
                 } catch (e: Exception) {

@@ -10,7 +10,11 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -35,6 +39,8 @@ class MapaViewModel : ViewModel() {
     private val _ubicacionPendiente = MutableStateFlow<Pair<Double, Double>?>(null)
     val ubicacionPendiente: StateFlow<Pair<Double, Double>?> = _ubicacionPendiente
 
+    private var recargarJob: Job? = null
+
     fun navegarAUbicacion(lat: Double, lng: Double) {
         _ubicacionPendiente.value = Pair(lat, lng)
     }
@@ -53,11 +59,15 @@ class MapaViewModel : ViewModel() {
 
     private suspend fun suscribirseACambios() {
         try {
-            val channel = SupabaseClient.client.realtime.channel("avistamientos-${System.currentTimeMillis()}")
+            val channel = SupabaseClient.client.realtime.channel("avistamientos")
             channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                 table = "avistamientos"
             }.onEach {
-                recargarZonas()
+                recargarJob?.cancel()
+                recargarJob = viewModelScope.launch {
+                    delay(2000)
+                    recargarZonas()
+                }
             }.launchIn(viewModelScope)
             channel.subscribe()
         } catch (e: Exception) {
@@ -71,7 +81,9 @@ class MapaViewModel : ViewModel() {
             _error.value = null
             try {
                 val avistamientos = AvistamientoRepository.getAvistamientos()
-                _zonas.value = AvistamientoRepository.getZonas(avistamientos)
+                _zonas.value = withContext(Dispatchers.Default) {
+                    AvistamientoRepository.getZonas(avistamientos)
+                }
             } catch (e: Exception) {
                 _error.value = "Error al cargar avistamientos: ${e.message}"
             } finally {
@@ -82,10 +94,6 @@ class MapaViewModel : ViewModel() {
 
     fun seleccionarZona(zona: ZonaAvistamiento) {
         _zonaSeleccionada.value = zona
-    }
-
-    fun seleccionar(avistamiento: Avistamiento) {
-        _avistamientoMarcado.value = avistamiento
     }
 
     fun marcarAvistamiento(avistamiento: Avistamiento) {

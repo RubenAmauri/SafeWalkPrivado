@@ -28,6 +28,7 @@ fun HistorialScreen(
     viewModel: HistorialViewModel,
     onVolver: () -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
+    onEditar: (Avistamiento) -> Unit,
     inactivosIds: Set<String> = emptySet()
 ) {
     val reportes by viewModel.reportes.collectAsState()
@@ -60,23 +61,6 @@ fun HistorialScreen(
                     Text("Cancelar")
                 }
             }
-        )
-    }
-
-    // Diálogo de edición
-    reporteAEditar?.let { reporte ->
-        DialogoEditarReporte(
-            reporte = reporte,
-            onConfirmar = { descripcion, agresividad ->
-                viewModel.editarReporte(
-                    avistamientoId = reporte.id,
-                    descripcion = descripcion,
-                    agresividad = agresividad,
-                    ubicacionAproximada = reporte.ubicacionAproximada
-                )
-                reporteAEditar = null
-            },
-            onCancelar = { reporteAEditar = null }
         )
     }
 
@@ -158,7 +142,7 @@ fun HistorialScreen(
                             TarjetaReporteHistorial(
                                 reporte = reporte,
                                 esInactivo = reporte.id in inactivosIds,
-                                onEditar = { reporteAEditar = reporte },
+                                onEditar = { onEditar(reporte) },
                                 onEliminar = { reporteAEliminar = reporte }
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -257,66 +241,4 @@ fun TarjetaReporteHistorial(
             color = Color.Gray
         )
     }
-}
-
-@Composable
-fun DialogoEditarReporte(
-    reporte: Avistamiento,
-    onConfirmar: (descripcion: String, agresividad: String) -> Unit,
-    onCancelar: () -> Unit
-) {
-    var descripcion by remember { mutableStateOf(reporte.descripcion) }
-    var nivelSeleccionado by remember { mutableStateOf(reporte.nivelAgresividad) }
-
-    AlertDialog(
-        onDismissRequest = onCancelar,
-        title = { Text("Editar reporte", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = descripcion,
-                    onValueChange = { descripcion = it },
-                    label = { Text("Descripción") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
-                )
-                Text("Nivel de agresividad", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NivelAgresividad.entries.forEach { nivel ->
-                        val (etiqueta, color) = when (nivel) {
-                            NivelAgresividad.BAJO -> "Bajo" to Color(0xFF4CAF50)
-                            NivelAgresividad.MEDIO -> "Medio" to Color(0xFFFF9800)
-                            NivelAgresividad.ALTO -> "Alto" to Color(0xFFF44336)
-                        }
-                        FilterChip(
-                            selected = nivelSeleccionado == nivel,
-                            onClick = { nivelSeleccionado = nivel },
-                            label = { Text(etiqueta, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = color.copy(alpha = 0.2f),
-                                selectedLabelColor = color
-                            )
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (descripcion.isNotBlank()) {
-                        onConfirmar(descripcion, nivelSeleccionado.name.lowercase())
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
-            ) {
-                Text("Guardar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onCancelar) {
-                Text("Cancelar")
-            }
-        }
-    )
 }

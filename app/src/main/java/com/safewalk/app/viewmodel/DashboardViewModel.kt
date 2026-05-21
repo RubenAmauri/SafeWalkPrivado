@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -40,6 +39,13 @@ data class DashboardData(
 )
 
 class DashboardViewModel : ViewModel() {
+
+    private val sdfMillis = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
+    private val sdfBasic = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
 
     private val _datos = MutableStateFlow<DashboardData?>(null)
     val datos: StateFlow<DashboardData?> = _datos
@@ -116,24 +122,20 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
+    private val tzOffsetRegex = Regex("\\+\\d{2}:\\d{2}$")
+    private val microsecondsRegex = Regex("(\\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\d+")
+
     private fun parseFecha(fechaStr: String): Date? {
         return try {
-            // Normalizar: quitar microsegundos extra y convertir +00:00 a Z
-            var normalizada = fechaStr
-                .replace(Regex("(\\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\d+"), "$1") // truncar a 3 decimales
+            val normalizada = fechaStr
+                .replace(microsecondsRegex, "$1")
                 .replace("+00:00", "Z")
-                .replace(Regex("\\+\\d{2}:\\d{2}$"), "Z")
-
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-            sdf.parse(normalizada)
+                .replace(tzOffsetRegex, "Z")
+            sdfMillis.parse(normalizada)
         } catch (e: Exception) {
             try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                sdf.parse(fechaStr.replace("+00:00", "Z").replace(Regex("\\+\\d{2}:\\d{2}$"), "Z"))
+                sdfBasic.parse(fechaStr.replace("+00:00", "Z").replace(tzOffsetRegex, "Z"))
             } catch (e2: Exception) {
-                android.util.Log.e("SafeWalk", "parseFecha falló: '$fechaStr'")
                 null
             }
         }

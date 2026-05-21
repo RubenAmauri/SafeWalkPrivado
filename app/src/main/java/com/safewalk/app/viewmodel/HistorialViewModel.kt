@@ -1,9 +1,14 @@
 package com.safewalk.app.viewmodel
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.safewalk.app.SupabaseClient
 import com.safewalk.app.model.Avistamiento
+import com.safewalk.app.model.FotoInfo
 import com.safewalk.app.repository.AvistamientoRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -11,6 +16,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 
 class HistorialViewModel : ViewModel() {
 
@@ -23,8 +29,21 @@ class HistorialViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    init {
-        cargarMisReportes()
+    private val _avistamientoParaEditar = MutableStateFlow<Avistamiento?>(null)
+    val avistamientoParaEditar: StateFlow<Avistamiento?> = _avistamientoParaEditar
+
+    private val _guardadoExitoso = MutableStateFlow(false)
+    val guardadoExitoso: StateFlow<Boolean> = _guardadoExitoso
+
+    init { cargarMisReportes() }
+
+    fun seleccionarParaEditar(avistamiento: Avistamiento) {
+        _avistamientoParaEditar.value = avistamiento
+    }
+
+    fun limpiarEdicion() {
+        _avistamientoParaEditar.value = null
+        _guardadoExitoso.value = false
     }
 
     fun cargarMisReportes() {
@@ -36,9 +55,7 @@ class HistorialViewModel : ViewModel() {
                 _reportes.value = SupabaseClient.client.postgrest
                     .from("avistamientos")
                     .select {
-                        filter {
-                            eq("usuario_id", uid)
-                        }
+                        filter { eq("usuario_id", uid) }
                         order("fecha_creacion", Order.DESCENDING)
                     }
                     .decodeList<Avistamiento>()
@@ -53,7 +70,6 @@ class HistorialViewModel : ViewModel() {
     fun eliminarReporte(avistamientoId: String) {
         viewModelScope.launch {
             _cargando.value = true
-            _error.value = null
             try {
                 AvistamientoRepository.eliminarAvistamiento(avistamientoId)
                 cargarMisReportes()
@@ -65,28 +81,57 @@ class HistorialViewModel : ViewModel() {
         }
     }
 
-    fun editarReporte(
+    fun guardarEdicion(
         avistamientoId: String,
         descripcion: String,
         agresividad: String,
-        ubicacionAproximada: String
+        ubicacionAproximada: String,
+        latitud: Double,
+        longitud: Double,
+        fotoUri: Uri?,
+        fotosAEliminar: List<FotoInfo>,
+        context: Context
     ) {
         viewModelScope.launch {
             _cargando.value = true
             _error.value = null
             try {
-                AvistamientoRepository.editarAvistamiento(
+                val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return@launch
+
+                // Editar campos base
+                AvistamientoRepository.editarAvistamientoCompleto(
                     avistamientoId = avistamientoId,
                     descripcion = descripcion,
                     agresividad = agresividad,
-                    ubicacionAproximada = ubicacionAproximada
+                    ubicacionAproximada = ubicacionAproximada,
+                    latitud = latitud,
+                    longitud = longitud
                 )
+
+                // Eliminar fotos marcadas
+                fotosAEliminar.forEach { foto ->
+                    AvistamientoRepository.eliminarFoto(foto.fotoId, avistamientoId, uid)
+                }
+
+                // Subir nueva foto si hay
+                fotoUri?.let { uri ->
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    val outputStream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+                    val bytes = outputStream.toByteArray()
+                    AvistamientoRepository.subirFoto(avistamientoId, uid, bytes)
+                }
+
+                _guardadoExitoso.value = true
                 cargarMisReportes()
             } catch (e: Exception) {
-                _error.value = "Error al editar: ${e.message}"
+                _error.value = "Error al guardar: ${e.message}"
+                android.util.Log.e("SafeWalk", "Error guardarEdicion: ${e.message}", e)
             } finally {
                 _cargando.value = false
             }
         }
     }
+
 }

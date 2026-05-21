@@ -63,3 +63,9 @@ data class Compartido(
     @SerialName("avistamiento_id") val avistamientoId: String = "",
     @SerialName("usuario_id") val usuarioId: String = ""
 )
+@Serializable
+data class FotoInfo(
+    @SerialName("foto_id") val fotoId: String = "",
+    @SerialName("avistamiento_id") val avistamientoId: String = "",
+    val url: String = ""
+)
