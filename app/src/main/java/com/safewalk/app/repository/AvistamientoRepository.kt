@@ -4,6 +4,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.safewalk.app.SupabaseClient
 import com.safewalk.app.model.Avistamiento
 import com.safewalk.app.model.AvistamientoInsert
+import com.safewalk.app.model.Comentario
+import com.safewalk.app.model.ComentarioInsert
 import com.safewalk.app.model.FotoInsert
 import com.safewalk.app.model.NivelAgresividad
 import com.safewalk.app.model.ZonaAvistamiento
@@ -240,6 +242,41 @@ object AvistamientoRepository {
             resultado.isNotEmpty()
         } catch (e: Exception) {
             false
+        }
+    }
+    suspend fun getComentarios(avistamientoId: String): List<Comentario> {
+        return try {
+            SupabaseClient.client.postgrest
+                .from("comentarios")
+                .select {
+                    filter { eq("avistamiento_id", avistamientoId) }
+                }
+                .decodeList<Comentario>()
+                .sortedBy { it.fecha }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al cargar comentarios: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun agregarComentario(avistamientoId: String, texto: String): Comentario? {
+        return try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return null
+            SupabaseClient.client.postgrest
+                .from("comentarios")
+                .insert(
+                    ComentarioInsert(
+                        avistamientoId = avistamientoId,
+                        usuarioId = uid,
+                        contenido = texto
+                    )
+                ) {
+                    select()
+                }
+                .decodeSingle<Comentario>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al agregar comentario: ${e.message}", e)
+            null
         }
     }
 }

@@ -36,6 +36,7 @@ fun DetalleAvistamientoScreen(
     validacionViewModel: ValidacionViewModel = viewModel()
 ) {
     val comentarios by viewModel.comentarios.collectAsState()
+    val enviando by viewModel.enviando.collectAsState()
     var texto by remember { mutableStateOf("") }
     var fotos by remember { mutableStateOf<List<String>>(emptyList()) }
     val validaciones by validacionViewModel.validaciones.collectAsState()
@@ -135,7 +136,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Descripción
-                    Text("Descripción", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Descripción",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(avistamiento.descripcion, fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -143,7 +149,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Ubicación — toca para ver en mapa
-                    Text("Ubicación", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Ubicación",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -169,7 +180,12 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Fecha
-                    Text("Fecha y hora", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Fecha y hora",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(formatearFecha(avistamiento.fechaCreacion), fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -177,14 +193,22 @@ fun DetalleAvistamientoScreen(
 
                 //Validaciones
                 item {
-                    Text("Validaciones", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        "Validaciones",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (estaCargandoValidacion) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
                         } else {
                             IconButton(
                                 onClick = {
@@ -222,7 +246,12 @@ fun DetalleAvistamientoScreen(
                 // Fotos
                 if (fotos.isNotEmpty()) {
                     item {
-                        Text("Fotos", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                        Text(
+                            "Fotos",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     items(fotos) { url ->
@@ -285,25 +314,43 @@ fun DetalleAvistamientoScreen(
                             texto = ""
                         }
                     },
+                    enabled = !enviando,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
                 ) {
-                    Text("Enviar")
+                    if (enviando) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text("Enviar")
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-fun ComentarioItem(comentario: Comentario) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        Text(text = comentario.usuario, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(text = comentario.texto, fontSize = 14.sp)
+    @Composable
+    fun ComentarioItem(comentario: Comentario) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Text(
+                text = "Usuario ${comentario.usuarioId.take(8)}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = comentario.texto, fontSize = 14.sp)
+            Text(
+                text = formatearFecha(comentario.fecha),
+                fontSize = 11.sp,
+                color = Color.Gray
+            )
+        }
+        HorizontalDivider()
     }
-    HorizontalDivider()
-}
