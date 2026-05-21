@@ -31,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.MoreVert
 
 @Composable
 fun DetalleAvistamientoScreen(
@@ -45,6 +46,7 @@ fun DetalleAvistamientoScreen(
     var texto by remember { mutableStateOf("") }
     var fotos by remember { mutableStateOf<List<String>>(emptyList()) }
     var fotoExpandida by remember { mutableStateOf<String?>(null) }
+    var comentarioAEditar by remember { mutableStateOf<Comentario?>(null) }
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargandoValidacion by validacionViewModel.cargando.collectAsState()
     val tipoValidacion = validaciones[avistamiento.id]
@@ -57,6 +59,7 @@ fun DetalleAvistamientoScreen(
     val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val currentUserId = viewModel.currentUserId()
 
     LaunchedEffect(avistamiento.id) {
         viewModel.cargarComentarios(avistamiento.id)
@@ -324,6 +327,7 @@ fun DetalleAvistamientoScreen(
                     }
                 }
 
+                // Comentarios
                 item {
                     Text(
                         "Comentarios",
@@ -339,7 +343,12 @@ fun DetalleAvistamientoScreen(
                     }
                 } else {
                     items(comentarios) { comentario ->
-                        ComentarioItem(comentario)
+                        ComentarioItem(
+                            comentario = comentario,
+                            currentUserId = currentUserId,
+                            onEditar = { comentarioAEditar = it },
+                            onEliminar = { viewModel.eliminarComentario(it.id) }
+                        )
                     }
                 }
 
@@ -477,21 +486,99 @@ fun DetalleAvistamientoScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+        comentarioAEditar?.let { comentario ->
+            var textoEdicion by remember { mutableStateOf(comentario.texto) }
+            AlertDialog(
+                onDismissRequest = { comentarioAEditar = null },
+                title = { Text("Editar comentario") },
+                text = {
+                    OutlinedTextField(
+                        value = textoEdicion,
+                        onValueChange = { textoEdicion = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (textoEdicion.isNotBlank()) {
+                                viewModel.editarComentario(comentario.id, textoEdicion)
+                                comentarioAEditar = null
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
+                    ) { Text("Guardar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { comentarioAEditar = null }) { Text("Cancelar") }
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun ComentarioItem(comentario: Comentario) {
+fun ComentarioItem(
+    comentario: Comentario,
+    currentUserId: String?,
+    onEditar: (Comentario) -> Unit,
+    onEliminar: (Comentario) -> Unit
+) {
+    var mostrarMenu by remember { mutableStateOf(false) }
+    val esPropio = comentario.usuarioId == currentUserId
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Text(
-            text = "Usuario ${comentario.usuarioId.take(8)}",
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Usuario ${comentario.usuarioId.take(8)}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (esPropio) {
+                Box {
+                    IconButton(
+                        onClick = { mostrarMenu = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = mostrarMenu,
+                        onDismissRequest = { mostrarMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Editar") },
+                            onClick = {
+                                mostrarMenu = false
+                                onEditar(comentario)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar", color = Color.Red) },
+                            onClick = {
+                                mostrarMenu = false
+                                onEliminar(comentario)
+                            }
+                        )
+                    }
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(2.dp))
         Text(text = comentario.texto, fontSize = 14.sp)
         Text(

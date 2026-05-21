@@ -415,6 +415,40 @@ object AvistamientoRepository {
                 filter { eq("avistamiento_id", avistamientoId) }
             }
     }
+    suspend fun editarComentario(comentarioId: String, nuevoTexto: String): Comentario? {
+        return try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return null
+            SupabaseClient.client.postgrest
+                .from("comentarios")
+                .update({ set("contenido", nuevoTexto) }) {
+                    filter {
+                        eq("comentario_id", comentarioId)
+                        eq("usuario_id", uid)
+                    }
+                    select()
+                }
+                .decodeSingle<Comentario>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al editar comentario: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun eliminarComentario(comentarioId: String) {
+        try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return
+            SupabaseClient.client.postgrest
+                .from("comentarios")
+                .delete {
+                    filter {
+                        eq("comentario_id", comentarioId)
+                        eq("usuario_id", uid)
+                    }
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error al eliminar comentario: ${e.message}", e)
+        }
+    }
 
 }
 
