@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,6 @@ import com.safewalk.app.util.formatearFecha
 import com.safewalk.app.viewmodel.ComentarioViewModel
 import androidx.compose.material.icons.filled.CheckCircle
 import com.safewalk.app.viewmodel.ValidacionViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun DetalleAvistamientoScreen(
@@ -33,7 +33,7 @@ fun DetalleAvistamientoScreen(
     onRegresar: () -> Unit,
     onVerEnMapa: (Double, Double) -> Unit = { _, _ -> },
     viewModel: ComentarioViewModel = viewModel(),
-    validacionViewModel: ValidacionViewModel = viewModel()
+    validacionViewModel: ValidacionViewModel
 ) {
     val comentarios by viewModel.comentarios.collectAsState()
     val enviando by viewModel.enviando.collectAsState()
@@ -41,16 +41,23 @@ fun DetalleAvistamientoScreen(
     var fotos by remember { mutableStateOf<List<String>>(emptyList()) }
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargandoValidacion by validacionViewModel.cargando.collectAsState()
-    val yaValido = validaciones[avistamiento.id] ?: false
+    val tipoValidacion = validaciones[avistamiento.id]
+    val yaValido = tipoValidacion == "sigue_ahi"
     val estaCargandoValidacion = avistamiento.id in cargandoValidacion
     val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
     val contadores by validacionViewModel.contadores.collectAsState()
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
+    val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
+    val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
 
     LaunchedEffect(avistamiento.id) {
         viewModel.cargarComentarios(avistamiento.id)
         fotos = AvistamientoRepository.getFotosAvistamiento(avistamiento.id)
-        validacionViewModel.cargarValidacion(avistamiento.id, avistamiento.totalConfirmaciones)
+        validacionViewModel.cargarValidacion(
+            avistamiento.id,
+            avistamiento.totalConfirmaciones,
+            avistamiento.totalYaNoEsta
+        )
     }
 
 
@@ -136,12 +143,7 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Descripción
-                    Text(
-                        "Descripción",
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    Text("Descripción", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(avistamiento.descripcion, fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -149,12 +151,7 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Ubicación — toca para ver en mapa
-                    Text(
-                        "Ubicación",
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    Text("Ubicación", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -180,12 +177,7 @@ fun DetalleAvistamientoScreen(
 
                 item {
                     // Fecha
-                    Text(
-                        "Fecha y hora",
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    Text("Fecha y hora", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(formatearFecha(avistamiento.fechaCreacion), fontSize = 15.sp)
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -193,51 +185,38 @@ fun DetalleAvistamientoScreen(
 
                 //Validaciones
                 item {
-                    Text(
-                        "Validaciones",
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Validaciones", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (estaCargandoValidacion) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            IconButton(
-                                onClick = {
-                                    if (!esPropio) validacionViewModel.toggleValidacion(avistamiento.id)
-                                },
-                                enabled = !esPropio,
-                                modifier = Modifier.size(36.dp)
-                            ) {
+                        // Confirmaciones
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (estaCargandoValidacion) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Validar",
-                                    tint = when {
-                                        esPropio -> Color.Gray.copy(alpha = 0.4f)
-                                        yaValido -> Color(0xFF4CAF50)
-                                        else -> Color.Gray
-                                    }
+                                    contentDescription = null,
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("$contador confirmaciones", fontSize = 14.sp)
                         }
-                        Text(
-                            text = "$contador confirmaciones",
-                            fontSize = 15.sp
-                        )
-                        if (esPropio) {
-                            Text(
-                                text = "(tu reporte)",
-                                fontSize = 12.sp,
-                                color = Color.Gray
+                        // Invalidaciones
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = null,
+                                tint = Color(0xFFF44336),
+                                modifier = Modifier.size(18.dp)
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("$contadorYaNoEsta invalidaciones", fontSize = 14.sp, color = Color(0xFFF44336))
                         }
                     }
                     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
@@ -246,12 +225,7 @@ fun DetalleAvistamientoScreen(
                 // Fotos
                 if (fotos.isNotEmpty()) {
                     item {
-                        Text(
-                            "Fotos",
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
+                        Text("Fotos", fontWeight = FontWeight.SemiBold, color = Color.Gray, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     items(fotos) { url ->
@@ -291,40 +265,92 @@ fun DetalleAvistamientoScreen(
             }
         }
 
-        // Input comentario
+        // Botones de validación + input comentario
         Surface(shadowElevation = 8.dp) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
-                    value = texto,
-                    onValueChange = { texto = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Escribe un comentario...") }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        if (texto.isNotBlank()) {
-                            viewModel.agregarComentario(avistamiento.id, texto)
-                            texto = ""
+                // Botones de validación (solo si no es propio reporte)
+                if (!esPropio) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Botón Sigue ahí
+                        OutlinedButton(
+                            onClick = { validacionViewModel.registrarOToggle(avistamiento.id, "sigue_ahi") },
+                            modifier = Modifier.weight(1f),
+                            enabled = !estaCargandoValidacion,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (tipoValidacion == "sigue_ahi") Color(0xFF4CAF50) else Color.Transparent,
+                                contentColor = if (tipoValidacion == "sigue_ahi") Color.White else Color(0xFF4CAF50)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF4CAF50))
+                        ) {
+                            Text(
+                                text = if (tipoValidacion == "sigue_ahi") "✓ Sigue ahí (${contador})" else "Sigue ahí (${contador})",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
                         }
-                    },
-                    enabled = !enviando,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
+
+                        // Botón Ya no está
+                        OutlinedButton(
+                            onClick = { validacionViewModel.registrarOToggle(avistamiento.id, "ya_no_esta") },
+                            modifier = Modifier.weight(1f),
+                            enabled = !estaCargandoValidacion,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (tipoValidacion == "ya_no_esta") Color(0xFFF44336) else Color.Transparent,
+                                contentColor = if (tipoValidacion == "ya_no_esta") Color.White else Color(0xFFF44336)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFF44336))
+                        ) {
+                            Text(
+                                text = if (tipoValidacion == "ya_no_esta") "✗ Ya no está (${contadorYaNoEsta})" else "Ya no está (${contadorYaNoEsta})",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                // Input comentario
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (enviando) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Enviar")
+                    TextField(
+                        value = texto,
+                        onValueChange = { texto = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Escribe un comentario...") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (texto.isNotBlank()) {
+                                viewModel.agregarComentario(avistamiento.id, texto)
+                                texto = ""
+                            }
+                        },
+                        enabled = !enviando,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
+                    ) {
+                        if (enviando) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                        } else {
+                            Text("Enviar")
+                        }
                     }
                 }
             }
@@ -332,25 +358,25 @@ fun DetalleAvistamientoScreen(
     }
 }
 
-    @Composable
-    fun ComentarioItem(comentario: Comentario) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = "Usuario ${comentario.usuarioId.take(8)}",
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = comentario.texto, fontSize = 14.sp)
-            Text(
-                text = formatearFecha(comentario.fecha),
-                fontSize = 11.sp,
-                color = Color.Gray
-            )
-        }
-        HorizontalDivider()
+@Composable
+fun ComentarioItem(comentario: Comentario) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = "Usuario ${comentario.usuarioId.take(8)}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(text = comentario.texto, fontSize = 14.sp)
+        Text(
+            text = formatearFecha(comentario.fecha),
+            fontSize = 11.sp,
+            color = Color.Gray
+        )
     }
+    HorizontalDivider()
+}
