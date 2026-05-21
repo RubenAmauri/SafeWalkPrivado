@@ -57,9 +57,7 @@ fun SafeWalkNavigation(
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
                 },
-                onIrAHistorial = {
-                    navController.navigate("historial")
-                }
+                onIrAHistorial = { navController.navigate("historial") }
             )
         }
 
@@ -189,12 +187,13 @@ private fun PantallasPrincipales(
     ) { padding ->
 
         Box(modifier = Modifier.padding(padding)) {
-
             when (tab) {
 
                 0 -> MapaScreen(
                     mapaViewModel = mapaViewModel,
                     onCrearReporte = onCrearReporte,
+                    onVerDetalle = onVerDetalle,
+                    validacionViewModel = validacionViewModel
                 )
 
                 1 -> FeedScreen(

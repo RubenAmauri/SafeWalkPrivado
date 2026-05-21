@@ -40,14 +40,20 @@ import androidx.compose.material.icons.filled.Report
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.widget.Toast
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.safewalk.app.viewmodel.ValidacionViewModel
 
 @SuppressLint("MissingPermission")
 @Composable
 fun MapaScreen(
     mapaViewModel: MapaViewModel,
     onCrearReporte: () -> Unit = {},
-    onReportar: (Avistamiento) -> Unit = {}
+    onReportar: (Avistamiento) -> Unit = {},
+    onVerDetalle: (Avistamiento) -> Unit = {},
+    validacionViewModel: ValidacionViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val zonas by mapaViewModel.zonas.collectAsState()
@@ -178,6 +184,8 @@ fun MapaScreen(
                 zona = zona,
                 onCerrar = { mapaViewModel.cerrarDetalle() },
                 onReportar = onReportar,
+                onVerDetalle = onVerDetalle,
+                validacionViewModel = validacionViewModel,
                 onVerUbicacion = { latLng, avistamiento ->
                     mapaViewModel.marcarAvistamiento(avistamiento)
                     cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
@@ -193,6 +201,8 @@ private fun DetalleZona(
     zona: ZonaAvistamiento,
     onCerrar: () -> Unit,
     onReportar: (Avistamiento) -> Unit,
+    onVerDetalle: (Avistamiento) -> Unit,
+    validacionViewModel: ValidacionViewModel,
     onVerUbicacion: (LatLng, Avistamiento) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -224,7 +234,9 @@ private fun DetalleZona(
                     ItemAvistamiento(
                         avistamiento = avistamiento,
                         onVerUbicacion = onVerUbicacion,
-                        onReportar = onReportar
+                        onReportar = onReportar,
+                        onVerDetalle = onVerDetalle,
+                        validacionViewModel = validacionViewModel
                     )
                 }
             }
@@ -236,9 +248,23 @@ private fun DetalleZona(
 private fun ItemAvistamiento(
     avistamiento: Avistamiento,
     onVerUbicacion: (LatLng, Avistamiento) -> Unit,
-    onReportar: (Avistamiento) -> Unit
+    onReportar: (Avistamiento) -> Unit,
+    onVerDetalle: (Avistamiento) -> Unit,
+    validacionViewModel: ValidacionViewModel
 ) {
     var mostrarMenu by remember { mutableStateOf(false) }
+    val contadores by validacionViewModel.contadores.collectAsState()
+    val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
+    val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
+    val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
+
+    LaunchedEffect(avistamiento.id) {
+        validacionViewModel.cargarValidacion(
+            avistamiento.id,
+            avistamiento.totalConfirmaciones,
+            avistamiento.totalYaNoEsta
+        )
+    }
 
     val fechaFormateada = remember(avistamiento.fechaCreacion) {
         formatearFecha(avistamiento.fechaCreacion)
@@ -264,7 +290,6 @@ private fun ItemAvistamiento(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 NivelChip(nivel = avistamiento.nivelAgresividad)
-
                 Box {
                     IconButton(onClick = { mostrarMenu = true }) {
                         Icon(
@@ -298,6 +323,41 @@ private fun ItemAvistamiento(
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = avistamiento.descripcion, fontSize = 12.sp)
         Text(text = fechaFormateada, fontSize = 11.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("$contador", fontSize = 11.sp, color = Color.Gray)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Cancel,
+                        contentDescription = null,
+                        tint = Color(0xFFF44336),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("$contadorYaNoEsta", fontSize = 11.sp, color = Color.Gray)
+                }
+            }
+            TextButton(
+                onClick = { onVerDetalle(avistamiento) },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+            ) {
+                Text("Ver detalle", fontSize = 11.sp, color = Color(0xFF1F3864))
+            }
+        }
     }
 }
 
