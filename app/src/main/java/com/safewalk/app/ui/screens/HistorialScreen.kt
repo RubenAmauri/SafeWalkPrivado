@@ -32,6 +32,9 @@ fun HistorialScreen(
     inactivosIds: Set<String> = emptySet()
 ) {
     val reportes by viewModel.reportes.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.cargarMisReportes()
+    }
     val cargando by viewModel.cargando.collectAsState()
     val error by viewModel.error.collectAsState()
 
