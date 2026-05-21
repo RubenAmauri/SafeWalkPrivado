@@ -27,6 +27,7 @@ import com.safewalk.app.viewmodel.ComentarioViewModel
 import androidx.compose.material.icons.filled.CheckCircle
 import com.safewalk.app.viewmodel.ValidacionViewModel
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
@@ -43,6 +44,7 @@ fun DetalleAvistamientoScreen(
     val enviando by viewModel.enviando.collectAsState()
     var texto by remember { mutableStateOf("") }
     var fotos by remember { mutableStateOf<List<String>>(emptyList()) }
+    var fotoExpandida by remember { mutableStateOf<String?>(null) }
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargandoValidacion by validacionViewModel.cargando.collectAsState()
     val tipoValidacion = validaciones[avistamiento.id]
@@ -314,7 +316,8 @@ fun DetalleAvistamientoScreen(
                             contentDescription = "Foto del avistamiento",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
+                                .height(200.dp)
+                                .clickable { fotoExpandida = url },  // <- agrega
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -456,6 +459,23 @@ fun DetalleAvistamientoScreen(
                     }
                 }
             }
+        }
+        fotoExpandida?.let { url ->
+            AlertDialog(
+                onDismissRequest = { fotoExpandida = null },
+                confirmButton = {},
+                text = {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Foto expandida",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        contentScale = ContentScale.FillWidth
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
