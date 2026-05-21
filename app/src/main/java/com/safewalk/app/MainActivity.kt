@@ -53,7 +53,11 @@ fun SafeWalkNavigation(
                 feedViewModel = feedViewModel,
                 validacionViewModel = validacionViewModel,
                 onCrearReporte = { navController.navigate("crear_reporte") },
-                onVerDetalle = { avistamiento ->
+                onVerDetalleDesdeFeed = { avistamiento ->
+                    feedViewModel.seleccionarAvistamiento(avistamiento)
+                    navController.navigate("detalle_avistamiento")
+                },
+                onVerDetalleDesdeMapaHack = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
                 },
@@ -162,11 +166,13 @@ private fun PantallasPrincipales(
     feedViewModel: FeedViewModel,
     validacionViewModel: ValidacionViewModel,
     onCrearReporte: () -> Unit,
-    onVerDetalle: (Avistamiento) -> Unit,
+    onVerDetalleDesdeFeed: (Avistamiento) -> Unit,
+    onVerDetalleDesdeMapaHack: (Avistamiento) -> Unit,
     onIrAHistorial: () -> Unit,
     onIrADashboard: () -> Unit
 ) {
-    var tab by remember { mutableIntStateOf(0) }
+    val tabActivo by feedViewModel.tabActivo.collectAsState()
+    var tab by remember { mutableIntStateOf(tabActivo) }
     var ubicacionActual by remember { mutableStateOf<LatLng?>(null) }
     val context = LocalContext.current
 
@@ -182,6 +188,9 @@ private fun PantallasPrincipales(
                     }
                 }
         }
+    }
+    LaunchedEffect(tab) {
+        feedViewModel.setTabActivo(tab)
     }
 
     Scaffold(
@@ -204,23 +213,20 @@ private fun PantallasPrincipales(
             }
         }
     ) { padding ->
-
         Box(modifier = Modifier.padding(padding)) {
             when (tab) {
-
                 0 -> MapaScreen(
                     mapaViewModel = mapaViewModel,
                     onCrearReporte = onCrearReporte,
-                    onVerDetalle = onVerDetalle,
+                    onVerDetalle = onVerDetalleDesdeMapaHack,
                     validacionViewModel = validacionViewModel
                 )
-
                 1 -> FeedScreen(
                     viewModel = feedViewModel,
                     validacionViewModel = validacionViewModel,
                     latitud = ubicacionActual?.latitude ?: 22.7709,
                     longitud = ubicacionActual?.longitude ?: -102.5832,
-                    onVerDetalle = onVerDetalle,
+                    onVerDetalle = onVerDetalleDesdeFeed,
                     onIrAHistorial = onIrAHistorial,
                     onIrADashboard = onIrADashboard
                 )

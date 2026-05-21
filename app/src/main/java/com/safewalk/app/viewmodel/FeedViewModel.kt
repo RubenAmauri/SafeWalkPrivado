@@ -11,9 +11,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class FeedViewModel : ViewModel() {
 
@@ -28,20 +25,26 @@ class FeedViewModel : ViewModel() {
     private val _avistamientoSeleccionado = MutableStateFlow<Avistamiento?>(null)
     val avistamientoSeleccionado: StateFlow<Avistamiento?> = _avistamientoSeleccionado
 
-    // Filtros
     private val _nivelesSeleccionados = MutableStateFlow<Set<NivelAgresividad>>(emptySet())
     val nivelesSeleccionados: StateFlow<Set<NivelAgresividad>> = _nivelesSeleccionados
 
     private val _soloRecientes = MutableStateFlow(false)
     val soloRecientes: StateFlow<Boolean> = _soloRecientes
+
     private val _inactivosIds = MutableStateFlow<Set<String>>(emptySet())
     val inactivosIds: StateFlow<Set<String>> = _inactivosIds
+
+    private val _tabActivo = MutableStateFlow(0)
+    val tabActivo: StateFlow<Int> = _tabActivo
 
     fun setInactivosIds(ids: Set<String>) {
         _inactivosIds.value = ids
     }
 
-    // Lista filtrada — se recalcula automáticamente cuando cambian los filtros o los datos
+    fun setTabActivo(tab: Int) {
+        _tabActivo.value = tab
+    }
+
     val avistamientos: StateFlow<List<Avistamiento>> = combine(
         _avistamientos,
         _nivelesSeleccionados,

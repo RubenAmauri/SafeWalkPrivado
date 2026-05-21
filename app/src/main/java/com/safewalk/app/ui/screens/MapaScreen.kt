@@ -73,6 +73,18 @@ fun MapaScreen(
         )
     }
 
+    LaunchedEffect(tienePermiso) {
+        if (tienePermiso) {
+            val fusedLocation = LocationServices.getFusedLocationProviderClient(context)
+            fusedLocation.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
+                    val pos = LatLng(location.latitude, location.longitude)
+                    cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(pos, 15f))
+                }
+            }
+        }
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> tienePermiso = granted }
