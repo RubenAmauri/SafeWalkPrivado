@@ -1,5 +1,6 @@
 package com.safewalk.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +27,8 @@ import com.safewalk.app.viewmodel.HistorialViewModel
 fun HistorialScreen(
     viewModel: HistorialViewModel,
     onVolver: () -> Unit,
-    onVerDetalle: (Avistamiento) -> Unit
+    onVerDetalle: (Avistamiento) -> Unit,
+    inactivosIds: Set<String> = emptySet()
 ) {
     val reportes by viewModel.reportes.collectAsState()
     val cargando by viewModel.cargando.collectAsState()
@@ -154,6 +157,7 @@ fun HistorialScreen(
                         items(reportes, key = { it.id }) { reporte ->
                             TarjetaReporteHistorial(
                                 reporte = reporte,
+                                esInactivo = reporte.id in inactivosIds,
                                 onEditar = { reporteAEditar = reporte },
                                 onEliminar = { reporteAEliminar = reporte }
                             )
@@ -169,6 +173,7 @@ fun HistorialScreen(
 @Composable
 fun TarjetaReporteHistorial(
     reporte: Avistamiento,
+    esInactivo: Boolean = false,
     onEditar: () -> Unit,
     onEliminar: () -> Unit
 ) {
@@ -186,6 +191,7 @@ fun TarjetaReporteHistorial(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (esInactivo) Color(0xFFFFEBEE) else Color.Transparent)
             .padding(16.dp)
     ) {
         Row(
@@ -218,6 +224,24 @@ fun TarjetaReporteHistorial(
                         Icons.Default.Delete,
                         contentDescription = "Eliminar",
                         tint = Color.Red
+                    )
+                }
+            }
+            if (esInactivo) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFC62828),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "+14 días sin interacción",
+                        fontSize = 11.sp,
+                        color = Color(0xFFC62828),
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }

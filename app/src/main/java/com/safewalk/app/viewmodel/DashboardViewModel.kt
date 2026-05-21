@@ -80,7 +80,7 @@ class DashboardViewModel : ViewModel() {
                         comentarios = comentariosPorReporte[r.id] ?: 0,
                         compartidos = compartidosPorReporte[r.id] ?: 0
                     )
-                }.sortedByDescending { it.total }
+                }.sortedByDescending { it.avistamiento.fechaCreacion }
 
                 val ahora = Date()
                 val milisEn14Dias = 14L * 24 * 60 * 60 * 1000
@@ -93,6 +93,7 @@ class DashboardViewModel : ViewModel() {
                         diff >= milisEn14Dias && totalInt == 0
                     } else false
                 }
+
 
                 _datos.value = DashboardData(
                     totalReportes = reportes.size,
@@ -116,36 +117,40 @@ class DashboardViewModel : ViewModel() {
     }
 
     private fun parseFecha(fechaStr: String): Date? {
-        val formatos = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        )
-        for (formato in formatos) {
+        return try {
+            // Normalizar: quitar microsegundos extra y convertir +00:00 a Z
+            var normalizada = fechaStr
+                .replace(Regex("(\\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\d+"), "$1") // truncar a 3 decimales
+                .replace("+00:00", "Z")
+                .replace(Regex("\\+\\d{2}:\\d{2}$"), "Z")
+
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.parse(normalizada)
+        } catch (e: Exception) {
             try {
-                val sdf = SimpleDateFormat(formato, Locale.getDefault())
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
                 sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                return sdf.parse(fechaStr)
-            } catch (e: Exception) { continue }
+                sdf.parse(fechaStr.replace("+00:00", "Z").replace(Regex("\\+\\d{2}:\\d{2}$"), "Z"))
+            } catch (e2: Exception) {
+                android.util.Log.e("SafeWalk", "parseFecha falló: '$fechaStr'")
+                null
+            }
         }
-        return null
     }
 
     private fun calcularPorSemana(reportes: List<Avistamiento>): List<Pair<String, Int>> {
+        val ahora = System.currentTimeMillis()
+        val unDiaMs = 24L * 60 * 60 * 1000
+        val unaSemanaMs = 7 * unDiaMs
+
         return (5 downTo 0).map { semanas ->
-            val inicio = Calendar.getInstance().apply {
-                add(Calendar.WEEK_OF_YEAR, -semanas)
-                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
-            }.time
-            val fin = Calendar.getInstance().apply {
-                add(Calendar.WEEK_OF_YEAR, -semanas)
-                set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
-            }.time
+            val finMs = ahora - (semanas * unaSemanaMs)
+            val inicioMs = finMs - unaSemanaMs
+
             val count = reportes.count { r ->
                 val f = parseFecha(r.fechaCreacion)
-                f != null && !f.before(inicio) && !f.after(fin)
+                f != null && f.time >= inicioMs && f.time < finMs
             }
             val etiqueta = if (semanas == 0) "Esta\nsem." else "Hace\n${semanas}s"
             etiqueta to count

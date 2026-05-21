@@ -126,9 +126,14 @@ fun SafeWalkNavigation(
 
         composable("historial") {
             val historialViewModel: HistorialViewModel = viewModel()
+            val inactivosIds by feedViewModel.inactivosIds.collectAsState()
             HistorialScreen(
                 viewModel = historialViewModel,
-                onVolver = { navController.popBackStack() },
+                inactivosIds = inactivosIds,
+                onVolver = {
+                    feedViewModel.setInactivosIds(emptySet())
+                    navController.popBackStack()
+                },
                 onVerDetalle = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
                     navController.navigate("detalle_avistamiento")
@@ -140,7 +145,11 @@ fun SafeWalkNavigation(
             DashboardScreen(
                 viewModel = dashboardViewModel,
                 onRegresar = { navController.popBackStack() },
-                onVerHistorial = { navController.navigate("historial") }
+                onVerHistorial = {
+                    val ids = dashboardViewModel.datos.value?.reportesInactivos?.map { it.id }?.toSet() ?: emptySet()
+                    feedViewModel.setInactivosIds(ids)
+                    navController.navigate("historial")
+                }
             )
         }
     }

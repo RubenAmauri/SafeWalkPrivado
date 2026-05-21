@@ -34,6 +34,12 @@ class FeedViewModel : ViewModel() {
 
     private val _soloRecientes = MutableStateFlow(false)
     val soloRecientes: StateFlow<Boolean> = _soloRecientes
+    private val _inactivosIds = MutableStateFlow<Set<String>>(emptySet())
+    val inactivosIds: StateFlow<Set<String>> = _inactivosIds
+
+    fun setInactivosIds(ids: Set<String>) {
+        _inactivosIds.value = ids
+    }
 
     // Lista filtrada — se recalcula automáticamente cuando cambian los filtros o los datos
     val avistamientos: StateFlow<List<Avistamiento>> = combine(

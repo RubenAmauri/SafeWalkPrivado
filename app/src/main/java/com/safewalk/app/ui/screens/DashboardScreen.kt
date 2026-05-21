@@ -38,6 +38,7 @@ fun DashboardScreen(
 ) {
     val datos by viewModel.datos.collectAsState()
     val cargando by viewModel.cargando.collectAsState()
+    val inactivos = datos?.reportesInactivos ?: emptyList()
 
     LaunchedEffect(Unit) { viewModel.cargar() }
 
@@ -64,8 +65,28 @@ fun DashboardScreen(
                         text = "Mi actividad",
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
                     )
+                    // Botón de alerta
+                    if (inactivos.isNotEmpty()) {
+                        Box {
+                            IconButton(onClick = onVerHistorial) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = "Reportes inactivos",
+                                    tint = Color.White
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(Color.Red, CircleShape)
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-4).dp, y = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -84,36 +105,6 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-
-                    // Banner reportes inactivos
-                    if (d.reportesInactivos.isNotEmpty()) {
-                        item {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFF856404), modifier = Modifier.size(20.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = "${d.reportesInactivos.size} reporte(s) sin interacción en 14+ días",
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF856404),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                    TextButton(onClick = onVerHistorial) {
-                                        Text("Ver", color = Color(0xFF856404), fontSize = 12.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     // Tarjetas de totales
                     item {
@@ -306,6 +297,7 @@ private fun GraficaDonut(bajo: Int, medio: Int, alto: Int) {
 @Composable
 private fun SeccionInteracciones(interacciones: List<ReporteInteraccion>) {
     var expandido by remember { mutableStateOf(false) }
+    var visibles by remember { mutableIntStateOf(5) }
     val maxTotal = interacciones.maxOfOrNull { it.total }?.coerceAtLeast(1) ?: 1
 
     Card {
@@ -316,7 +308,13 @@ private fun SeccionInteracciones(interacciones: List<ReporteInteraccion>) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Interacciones por reporte", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                IconButton(onClick = { expandido = !expandido }, modifier = Modifier.size(28.dp)) {
+                IconButton(
+                    onClick = {
+                        expandido = !expandido
+                        if (!expandido) visibles = 5
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
                     Icon(
                         if (expandido) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
@@ -330,7 +328,7 @@ private fun SeccionInteracciones(interacciones: List<ReporteInteraccion>) {
                 if (interacciones.isEmpty()) {
                     Text("Sin reportes aún", color = Color.Gray, fontSize = 13.sp)
                 } else {
-                    interacciones.take(5).forEach { item ->
+                    interacciones.take(visibles).forEach { item ->
                         Column(modifier = Modifier.padding(vertical = 6.dp)) {
                             Text(
                                 text = item.avistamiento.ubicacionAproximada,
@@ -351,13 +349,18 @@ private fun SeccionInteracciones(interacciones: List<ReporteInteraccion>) {
                         }
                         HorizontalDivider()
                     }
-                    if (interacciones.size > 5) {
-                        Text(
-                            "+ ${interacciones.size - 5} reportes más",
-                            fontSize = 11.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+
+                    if (visibles < interacciones.size) {
+                        TextButton(
+                            onClick = { visibles += 5 },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text(
+                                "Ver ${minOf(5, interacciones.size - visibles)} más",
+                                fontSize = 12.sp,
+                                color = Color(0xFF1F3864)
+                            )
+                        }
                     }
                 }
             }
