@@ -26,7 +26,6 @@ import com.safewalk.app.util.formatearFecha
 import com.safewalk.app.viewmodel.ComentarioViewModel
 import androidx.compose.material.icons.filled.CheckCircle
 import com.safewalk.app.viewmodel.ValidacionViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun DetalleAvistamientoScreen(
@@ -34,7 +33,7 @@ fun DetalleAvistamientoScreen(
     onRegresar: () -> Unit,
     onVerEnMapa: (Double, Double) -> Unit = { _, _ -> },
     viewModel: ComentarioViewModel = viewModel(),
-    validacionViewModel: ValidacionViewModel = viewModel()
+    validacionViewModel: ValidacionViewModel
 ) {
     val comentarios by viewModel.comentarios.collectAsState()
     var texto by remember { mutableStateOf("") }

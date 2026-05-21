@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun FeedScreen(
     viewModel: FeedViewModel,
+    validacionViewModel: ValidacionViewModel,
     latitud: Double,
     longitud: Double,
     onVerDetalle: (Avistamiento) -> Unit,
@@ -173,6 +174,7 @@ fun FeedScreen(
                     items(avistamientos) { avistamiento ->
                         ReporteItem(
                             avistamiento = avistamiento,
+                            validacionViewModel = validacionViewModel,
                             onClick = { onVerDetalle(avistamiento) }
                         )
                     }
@@ -186,7 +188,7 @@ fun FeedScreen(
 fun ReporteItem(
     avistamiento: Avistamiento,
     onClick: () -> Unit,
-    validacionViewModel: ValidacionViewModel = viewModel()
+    validacionViewModel: ValidacionViewModel
 ) {
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargando by validacionViewModel.cargando.collectAsState()
@@ -195,7 +197,9 @@ fun ReporteItem(
     val estaCargando = avistamiento.id in cargando
     val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
     val contadores by validacionViewModel.contadores.collectAsState()
+    val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
+    val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
 
     LaunchedEffect(avistamiento.id) {
         validacionViewModel.cargarValidacion(
@@ -297,7 +301,7 @@ fun ReporteItem(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = { if (!esPropio) validacionViewModel.registrarOToggle(avistamiento.id, "ya_no_esta") },
-                            enabled = !esPropio,
+                            enabled = !esPropio && !estaCargando,
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
@@ -312,7 +316,7 @@ fun ReporteItem(
                             )
                         }
                         Text(
-                            text = "${avistamiento.totalYaNoEsta}",
+                            text = "$contadorYaNoEsta",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )

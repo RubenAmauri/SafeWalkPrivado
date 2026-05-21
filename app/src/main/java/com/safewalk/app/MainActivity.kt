@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
 fun SafeWalkNavigation(
     mapaViewModel: MapaViewModel = viewModel(),
     feedViewModel: FeedViewModel = viewModel(),
-    crearViewModel: CrearAvistamientoViewModel = viewModel()
-
+    crearViewModel: CrearAvistamientoViewModel = viewModel(),
+    validacionViewModel: ValidacionViewModel = viewModel()
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -51,6 +51,7 @@ fun SafeWalkNavigation(
             PantallasPrincipales(
                 mapaViewModel = mapaViewModel,
                 feedViewModel = feedViewModel,
+                validacionViewModel = validacionViewModel,
                 onCrearReporte = { navController.navigate("crear_reporte") },
                 onVerDetalle = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
@@ -107,6 +108,7 @@ fun SafeWalkNavigation(
             avistamiento?.let {
                 DetalleAvistamientoScreen(
                     avistamiento = it,
+                    validacionViewModel = validacionViewModel,
                     onRegresar = {
                         feedViewModel.limpiarSeleccion()
                         navController.popBackStack()
@@ -142,6 +144,7 @@ fun SafeWalkNavigation(
 private fun PantallasPrincipales(
     mapaViewModel: MapaViewModel,
     feedViewModel: FeedViewModel,
+    validacionViewModel: ValidacionViewModel,
     onCrearReporte: () -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
     onIrAHistorial: () -> Unit
@@ -196,6 +199,7 @@ private fun PantallasPrincipales(
 
                 1 -> FeedScreen(
                     viewModel = feedViewModel,
+                    validacionViewModel = validacionViewModel,
                     latitud = ubicacionActual?.latitude ?: 22.7709,
                     longitud = ubicacionActual?.longitude ?: -102.5832,
                     onVerDetalle = onVerDetalle,
