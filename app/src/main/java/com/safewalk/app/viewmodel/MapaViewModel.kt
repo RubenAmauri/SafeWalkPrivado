@@ -40,6 +40,10 @@ class MapaViewModel : ViewModel() {
     val ubicacionPendiente: StateFlow<Pair<Double, Double>?> = _ubicacionPendiente
 
     private var recargarJob: Job? = null
+    private val _zonaMasCercana = MutableStateFlow<Pair<ZonaAvistamiento, Double>?>(null)
+    val zonaMasCercana: StateFlow<Pair<ZonaAvistamiento, Double>?> = _zonaMasCercana
+    private val _avistamientoMasCercanoId = MutableStateFlow<String?>(null)
+    val avistamientoMasCercanoId: StateFlow<String?> = _avistamientoMasCercanoId
 
     fun navegarAUbicacion(lat: Double, lng: Double) {
         _ubicacionPendiente.value = Pair(lat, lng)
@@ -102,6 +106,28 @@ class MapaViewModel : ViewModel() {
 
     fun cerrarDetalle() {
         _zonaSeleccionada.value = null
+        _avistamientoMarcado.value = null
+    }
+    fun calcularZonaMasCercana(lat: Double, lng: Double) {
+        val zonas = _zonas.value
+        if (zonas.isEmpty()) return
+        val cercana = zonas.minByOrNull { zona ->
+            AvistamientoRepository.distanciaMetros(lat, lng, zona.centro.latitude, zona.centro.longitude)
+        } ?: return
+        val distancia = AvistamientoRepository.distanciaMetros(lat, lng, cercana.centro.latitude, cercana.centro.longitude)
+        _zonaMasCercana.value = Pair(cercana, distancia)
+
+        // Marcar el avistamiento más cercano dentro de esa zona
+        val avistamientoMasCercano = cercana.avistamientos.minByOrNull { a ->
+            AvistamientoRepository.distanciaMetros(lat, lng, a.latitud, a.longitud)
+        }
+        _avistamientoMarcado.value = avistamientoMasCercano
+        _avistamientoMasCercanoId.value = avistamientoMasCercano?.id
+    }
+
+    fun limpiarZonaMasCercana() {
+        _zonaMasCercana.value = null
+        _avistamientoMasCercanoId.value = null
         _avistamientoMarcado.value = null
     }
 }

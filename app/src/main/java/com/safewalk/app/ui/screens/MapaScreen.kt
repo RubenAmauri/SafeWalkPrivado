@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.safewalk.app.viewmodel.ValidacionViewModel
+import com.google.maps.android.compose.Polyline
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -59,11 +60,14 @@ fun MapaScreen(
     val zonas by mapaViewModel.zonas.collectAsState()
     val zonaSeleccionada by mapaViewModel.zonaSeleccionada.collectAsState()
     val avistamientoMarcado by mapaViewModel.avistamientoMarcado.collectAsState()
+    val avistamientoMasCercanoId by mapaViewModel.avistamientoMasCercanoId.collectAsState()
 
     val zacatecas = LatLng(22.7709, -102.5832)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(zacatecas, 13f)
     }
+    val zonaMasCercana by mapaViewModel.zonaMasCercana.collectAsState()
+    var ubicacionUsuario by remember { mutableStateOf<LatLng?>(null) }
 
     var tienePermiso by remember {
         mutableStateOf(
@@ -133,6 +137,19 @@ fun MapaScreen(
                     )
                 )
             }
+            zonaMasCercana?.let { (zona, _) ->
+                ubicacionUsuario?.let { userPos ->
+                    Polyline(
+                        points = listOf(userPos, zona.centro),
+                        color = Color(0xFF1F3864),
+                        width = 6f,
+                        pattern = listOf(
+                            com.google.android.gms.maps.model.Dash(20f),
+                            com.google.android.gms.maps.model.Gap(10f)
+                        )
+                    )
+                }
+            }
         }
 
         // Botón GPS
@@ -143,13 +160,11 @@ fun MapaScreen(
                     fusedLocation.lastLocation.addOnSuccessListener { location ->
                         if (location != null) {
                             val pos = LatLng(location.latitude, location.longitude)
+                            ubicacionUsuario = pos
                             cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(pos, 15f))
+                            mapaViewModel.calcularZonaMasCercana(location.latitude, location.longitude)
                         } else {
-                            Toast.makeText(
-                                context,
-                                "No se pudo obtener la ubicación actual",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(context, "No se pudo obtener la ubicación actual", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } else {
@@ -160,11 +175,7 @@ fun MapaScreen(
                     ) {
                         launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     } else {
-                        Toast.makeText(
-                            context,
-                            "Activa el permiso de ubicación en Ajustes para usar esta función",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(context, "Activa el permiso de ubicación en Ajustes para usar esta función", Toast.LENGTH_LONG).show()
                     }
                 }
             },
@@ -198,12 +209,51 @@ fun MapaScreen(
                 onReportar = onReportar,
                 onVerDetalle = onVerDetalle,
                 validacionViewModel = validacionViewModel,
+                avistamientoMasCercanoId = avistamientoMasCercanoId,
                 onVerUbicacion = { latLng, avistamiento ->
                     mapaViewModel.marcarAvistamiento(avistamiento)
                     cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
                 },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+        }
+
+        //Visualizador de la distancia a la zona más cercana
+        zonaMasCercana?.let { (zona, distanciaMetros) ->
+            val textoDistancia = if (distanciaMetros >= 1000) {
+                "%.1f km a zona más cercana".format(distanciaMetros / 1000)
+            } else {
+                "${distanciaMetros.toInt()} m a zona más cercana"
+            }
+            val colorZona = colorZona(zona.nivelPromedio)
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+                    .clickable { mapaViewModel.limpiarZonaMasCercana() },
+                shape = RoundedCornerShape(50),
+                color = Color(0xFF1F3864),
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(colorZona, RoundedCornerShape(50))
+                    )
+                    Text(
+                        text = textoDistancia,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text("✕", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                }
+            }
         }
     }
 }
@@ -215,9 +265,17 @@ private fun DetalleZona(
     onReportar: (Avistamiento) -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
     validacionViewModel: ValidacionViewModel,
+    avistamientoMasCercanoId: String?,
     onVerUbicacion: (LatLng, Avistamiento) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val avistamientosOrdenados = remember(zona.avistamientos, avistamientoMasCercanoId) {
+        if (avistamientoMasCercanoId != null) {
+            val cercano = zona.avistamientos.find { it.id == avistamientoMasCercanoId }
+            val resto = zona.avistamientos.filter { it.id != avistamientoMasCercanoId }
+            if (cercano != null) listOf(cercano) + resto else zona.avistamientos
+        } else zona.avistamientos
+    }
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -242,13 +300,14 @@ private fun DetalleZona(
             NivelChip(nivel = zona.nivelPromedio, prefijo = "Zona: ")
             Spacer(modifier = Modifier.height(8.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(zona.avistamientos) { avistamiento ->
+                items(avistamientosOrdenados) { avistamiento ->
                     ItemAvistamiento(
                         avistamiento = avistamiento,
                         onVerUbicacion = onVerUbicacion,
                         onReportar = onReportar,
                         onVerDetalle = onVerDetalle,
-                        validacionViewModel = validacionViewModel
+                        validacionViewModel = validacionViewModel,
+                        esMasCercano = avistamiento.id == avistamientoMasCercanoId  // <- agrega
                     )
                 }
             }
@@ -262,7 +321,8 @@ private fun ItemAvistamiento(
     onVerUbicacion: (LatLng, Avistamiento) -> Unit,
     onReportar: (Avistamiento) -> Unit,
     onVerDetalle: (Avistamiento) -> Unit,
-    validacionViewModel: ValidacionViewModel
+    validacionViewModel: ValidacionViewModel,
+    esMasCercano: Boolean = false
 ) {
     var mostrarMenu by remember { mutableStateOf(false) }
     val contadores by validacionViewModel.contadores.collectAsState()
@@ -290,6 +350,21 @@ private fun ItemAvistamiento(
                 onVerUbicacion(LatLng(avistamiento.latitud, avistamiento.longitud), avistamiento)
             }
     ) {
+        if (esMasCercano) {
+            Surface(
+                color = Color(0xFF1F3864),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                Text(
+                    "📍 Más cercano",
+                    fontSize = 10.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween

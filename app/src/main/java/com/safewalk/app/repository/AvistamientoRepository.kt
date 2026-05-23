@@ -18,6 +18,8 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlin.math.*
 import com.safewalk.app.model.FotoInfo
+import com.safewalk.app.model.ZonaFrecuente
+import com.safewalk.app.model.ZonaFrecuenteInsert
 
 object AvistamientoRepository {
 
@@ -447,6 +449,62 @@ object AvistamientoRepository {
                 }
         } catch (e: Exception) {
             android.util.Log.e("SafeWalk", "Error al eliminar comentario: ${e.message}", e)
+        }
+    }
+    suspend fun getZonasFrecuentes(): List<ZonaFrecuente> {
+        return try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return emptyList()
+            SupabaseClient.client.postgrest
+                .from("zonas_frecuentes")
+                .select { filter { eq("usuario_id", uid) } }
+                .decodeList<ZonaFrecuente>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error getZonasFrecuentes: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun agregarZonaFrecuente(nombre: String, latitud: Double, longitud: Double): ZonaFrecuente? {
+        return try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return null
+            SupabaseClient.client.postgrest
+                .from("zonas_frecuentes")
+                .insert(
+                    ZonaFrecuenteInsert(
+                        usuarioId = uid,
+                        nombre = nombre,
+                        latitud = latitud,
+                        longitud = longitud
+                    )
+                ) { select() }
+                .decodeSingle<ZonaFrecuente>()
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error agregarZonaFrecuente: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun editarZonaFrecuente(zonaId: String, nombre: String, latitud: Double, longitud: Double) {
+        try {
+            SupabaseClient.client.postgrest
+                .from("zonas_frecuentes")
+                .update({
+                    set("nombre", nombre)
+                    set("latitud", latitud)
+                    set("longitud", longitud)
+                }) { filter { eq("zona_id", zonaId) } }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error editarZonaFrecuente: ${e.message}", e)
+        }
+    }
+
+    suspend fun eliminarZonaFrecuente(zonaId: String) {
+        try {
+            SupabaseClient.client.postgrest
+                .from("zonas_frecuentes")
+                .delete { filter { eq("zona_id", zonaId) } }
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error eliminarZonaFrecuente: ${e.message}", e)
         }
     }
 
