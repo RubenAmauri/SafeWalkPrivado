@@ -42,6 +42,8 @@ import androidx.compose.runtime.setValue
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.safewalk.app.viewmodel.ValidacionViewModel
@@ -54,6 +56,7 @@ fun MapaScreen(
     onCrearReporte: () -> Unit = {},
     onReportar: (Avistamiento) -> Unit = {},
     onVerDetalle: (Avistamiento) -> Unit = {},
+    onIrAZonasFrecuentes: () -> Unit = {},
     validacionViewModel: ValidacionViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -61,6 +64,7 @@ fun MapaScreen(
     val zonaSeleccionada by mapaViewModel.zonaSeleccionada.collectAsState()
     val avistamientoMarcado by mapaViewModel.avistamientoMarcado.collectAsState()
     val avistamientoMasCercanoId by mapaViewModel.avistamientoMasCercanoId.collectAsState()
+    val avisoZonasFrecuentes by mapaViewModel.avisoZonasFrecuentes.collectAsState()
 
     val zacatecas = LatLng(22.7709, -102.5832)
     val cameraPositionState = rememberCameraPositionState {
@@ -201,6 +205,20 @@ fun MapaScreen(
             Icon(Icons.Default.Add, contentDescription = "Crear reporte", tint = Color.White)
         }
 
+        // Botón Zonas frecuentes
+        FloatingActionButton(
+            onClick = onIrAZonasFrecuentes,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(
+                    bottom = if (zonaSeleccionada != null) 300.dp else 144.dp,
+                    start = 16.dp
+                ),
+            containerColor = Color(0xFF1F3864)
+        ) {
+            Icon(Icons.Default.Star, contentDescription = "Zonas frecuentes", tint = Color.White)
+        }
+
         // Card de detalle
         zonaSeleccionada?.let { zona ->
             DetalleZona(
@@ -252,6 +270,35 @@ fun MapaScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text("✕", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                }
+            }
+            if (avisoZonasFrecuentes > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 16.dp, end = 16.dp)
+                ) {
+                    FloatingActionButton(
+                        onClick = { mapaViewModel.limpiarAvisoZonasFrecuentes() },
+                        containerColor = Color(0xFF1F3864),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .background(Color.Red, RoundedCornerShape(50))
+                            .align(Alignment.TopEnd)
+                    ) {
+                        Text(
+                            text = if (avisoZonasFrecuentes > 9) "9+" else "$avisoZonasFrecuentes",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
             }
         }

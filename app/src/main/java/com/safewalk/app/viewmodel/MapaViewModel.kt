@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.safewalk.app.model.ZonaFrecuente
 
 class MapaViewModel : ViewModel() {
 
@@ -44,6 +45,8 @@ class MapaViewModel : ViewModel() {
     val zonaMasCercana: StateFlow<Pair<ZonaAvistamiento, Double>?> = _zonaMasCercana
     private val _avistamientoMasCercanoId = MutableStateFlow<String?>(null)
     val avistamientoMasCercanoId: StateFlow<String?> = _avistamientoMasCercanoId
+    private val _avisoZonasFrecuentes = MutableStateFlow<Int>(0)
+    val avisoZonasFrecuentes: StateFlow<Int> = _avisoZonasFrecuentes
 
     fun navegarAUbicacion(lat: Double, lng: Double) {
         _ubicacionPendiente.value = Pair(lat, lng)
@@ -88,6 +91,7 @@ class MapaViewModel : ViewModel() {
                 _zonas.value = withContext(Dispatchers.Default) {
                     AvistamientoRepository.getZonas(avistamientos)
                 }
+                verificarReportesCercanosAZonasFrecuentes()
             } catch (e: Exception) {
                 _error.value = "Error al cargar avistamientos: ${e.message}"
             } finally {
@@ -129,5 +133,29 @@ class MapaViewModel : ViewModel() {
         _zonaMasCercana.value = null
         _avistamientoMasCercanoId.value = null
         _avistamientoMarcado.value = null
+    }
+
+    fun limpiarAvisoZonasFrecuentes() {
+        _avisoZonasFrecuentes.value = 0
+    }
+
+    private suspend fun verificarReportesCercanosAZonasFrecuentes() {
+        try {
+            val zonasFrecuentes = AvistamientoRepository.getZonasFrecuentes()
+            if (zonasFrecuentes.isEmpty()) return
+            val avistamientos = _zonas.value.flatMap { it.avistamientos }
+            var totalCercanos = 0
+            zonasFrecuentes.forEach { zona ->
+                val cercanos = avistamientos.count { a ->
+                    AvistamientoRepository.distanciaMetros(
+                        zona.latitud, zona.longitud, a.latitud, a.longitud
+                    ) <= zona.radio
+                }
+                totalCercanos += cercanos
+            }
+            _avisoZonasFrecuentes.value = totalCercanos
+        } catch (e: Exception) {
+            android.util.Log.e("SafeWalk", "Error verificarZonasFrecuentes: ${e.message}", e)
+        }
     }
 }

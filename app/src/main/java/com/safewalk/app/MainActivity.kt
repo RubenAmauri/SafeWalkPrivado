@@ -38,11 +38,13 @@ fun SafeWalkNavigation(
     feedViewModel: FeedViewModel = viewModel(),
     crearViewModel: CrearAvistamientoViewModel = viewModel(),
     validacionViewModel: ValidacionViewModel = viewModel(),
-    historialViewModel: HistorialViewModel = viewModel()
+    historialViewModel: HistorialViewModel = viewModel(),
+    zonasFrecuentesViewModel: ZonasFrecuentesViewModel = viewModel()
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
     var ubicacionReporte by remember { mutableStateOf<LatLng?>(null) }
+    var ubicacionZonaFrecuente by remember { mutableStateOf<LatLng?>(null) }
     var ubicacionEdicion by remember { mutableStateOf<LatLng?>(null) }
 
     val session by SupabaseClient.client.auth.sessionStatus.collectAsState()
@@ -64,7 +66,8 @@ fun SafeWalkNavigation(
                     navController.navigate("detalle_avistamiento")
                 },
                 onIrAHistorial = { navController.navigate("historial") },
-                onIrADashboard = { navController.navigate("dashboard") }
+                onIrADashboard = { navController.navigate("dashboard") },
+                onIrAZonasFrecuentes = { navController.navigate("zonas_frecuentes") }
             )
         }
 
@@ -189,6 +192,29 @@ fun SafeWalkNavigation(
                 onRegresar = { navController.popBackStack() }
             )
         }
+        composable("zonas_frecuentes") {
+            ZonasFrecuentesScreen(
+                viewModel = zonasFrecuentesViewModel,
+                ubicacionPreseleccionada = ubicacionZonaFrecuente,
+                onSeleccionarUbicacion = {
+                    navController.navigate("seleccionar_ubicacion_zona_frecuente")
+                },
+                onRegresar = {
+                    ubicacionZonaFrecuente = null
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable("seleccionar_ubicacion_zona_frecuente") {
+            SeleccionarUbicacionScreen(
+                onUbicacionSeleccionada = {
+                    ubicacionZonaFrecuente = it
+                    navController.popBackStack()
+                },
+                onRegresar = { navController.popBackStack() }
+            )
+        }
     }
 }
 
@@ -202,7 +228,8 @@ private fun PantallasPrincipales(
     onVerDetalleDesdeFeed: (Avistamiento) -> Unit,
     onVerDetalleDesdeMapaHack: (Avistamiento) -> Unit,
     onIrAHistorial: () -> Unit,
-    onIrADashboard: () -> Unit
+    onIrADashboard: () -> Unit,
+    onIrAZonasFrecuentes: () -> Unit
 ) {
     val tabActivo by feedViewModel.tabActivo.collectAsState()
     var tab by remember { mutableIntStateOf(tabActivo) }
@@ -252,6 +279,7 @@ private fun PantallasPrincipales(
                     mapaViewModel = mapaViewModel,
                     onCrearReporte = onCrearReporte,
                     onVerDetalle = onVerDetalleDesdeMapaHack,
+                    onIrAZonasFrecuentes = onIrAZonasFrecuentes,
                     validacionViewModel = validacionViewModel
                 )
                 1 -> FeedScreen(
