@@ -106,6 +106,7 @@ fun MapaScreen(
         val ubicacionPendiente by mapaViewModel.ubicacionPendiente.collectAsState()
         LaunchedEffect(ubicacionPendiente) {
             ubicacionPendiente?.let { (lat, lng) ->
+                kotlinx.coroutines.delay(300)  // <- agrega
                 cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 17f))
                 mapaViewModel.consumirUbicacionPendiente()
             }

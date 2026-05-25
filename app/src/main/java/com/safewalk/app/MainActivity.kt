@@ -129,11 +129,12 @@ fun SafeWalkNavigation(
                     },
                     onVerEnMapa = { lat, lng ->
                         mapaViewModel.marcarAvistamiento(it)
-                        mapaViewModel.navegarAUbicacion(lat, lng)
                         feedViewModel.limpiarSeleccion()
+                        feedViewModel.setTabActivo(0)
                         navController.navigate("principal") {
                             popUpTo("principal") { inclusive = true }
                         }
+                        mapaViewModel.navegarAUbicacion(lat, lng)
                     }
                 )
             }
