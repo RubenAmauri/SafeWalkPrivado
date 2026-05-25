@@ -50,7 +50,6 @@ fun DetalleAvistamientoScreen(
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargandoValidacion by validacionViewModel.cargando.collectAsState()
     val tipoValidacion = validaciones[avistamiento.id]
-    val yaValido = tipoValidacion == "sigue_ahi"
     val estaCargandoValidacion = avistamiento.id in cargandoValidacion
     val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
     val contadores by validacionViewModel.contadores.collectAsState()

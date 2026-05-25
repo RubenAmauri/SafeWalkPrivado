@@ -40,8 +40,6 @@ fun HistorialScreen(
 
     // Estado para el diálogo de confirmación de eliminación
     var reporteAEliminar by remember { mutableStateOf<Avistamiento?>(null) }
-    // Estado para el diálogo de edición
-    var reporteAEditar by remember { mutableStateOf<Avistamiento?>(null) }
 
     // Diálogo de confirmación de eliminación
     reporteAEliminar?.let { reporte ->

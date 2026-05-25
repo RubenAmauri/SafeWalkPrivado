@@ -88,12 +88,11 @@ class CrearAvistamientoViewModel : ViewModel() {
                         val outputStream = ByteArrayOutputStream()
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
                         val bytes = outputStream.toByteArray()
-                        val url = AvistamientoRepository.subirFoto(
+                        AvistamientoRepository.subirFoto(
                             avistamientoId = avistamientoId,
                             usuarioId = uid,
                             imagenBytes = bytes
                         )
-                        android.util.Log.d("SafeWalk", "Foto subida, URL: $url")
                     }
                 }
 

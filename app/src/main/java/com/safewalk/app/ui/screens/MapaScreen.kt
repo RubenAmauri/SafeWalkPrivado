@@ -65,7 +65,6 @@ fun MapaScreen(
     val avistamientoMarcado by mapaViewModel.avistamientoMarcado.collectAsState()
     val avistamientoMasCercanoId by mapaViewModel.avistamientoMasCercanoId.collectAsState()
     val avisoZonasFrecuentes by mapaViewModel.avisoZonasFrecuentes.collectAsState()
-    android.util.Log.d("SafeWalk", "avisoUI: $avisoZonasFrecuentes")
 
     val zacatecas = LatLng(22.7709, -102.5832)
     val cameraPositionState = rememberCameraPositionState {
@@ -428,7 +427,6 @@ private fun ItemAvistamiento(
     val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
     val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
-    var mostrarDetalleAviso by remember { mutableStateOf(false) }
 
     LaunchedEffect(avistamiento.id) {
         validacionViewModel.cargarValidacion(

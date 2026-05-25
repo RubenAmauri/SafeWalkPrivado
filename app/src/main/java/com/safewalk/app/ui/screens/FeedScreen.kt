@@ -25,7 +25,6 @@ import com.safewalk.app.model.NivelAgresividad
 import com.safewalk.app.viewmodel.FeedViewModel
 import com.safewalk.app.util.formatearFecha
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.ui.unit.sp
 import com.safewalk.app.viewmodel.ValidacionViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -204,7 +203,6 @@ fun ReporteItem(
     val validaciones by validacionViewModel.validaciones.collectAsState()
     val cargando by validacionViewModel.cargando.collectAsState()
     val tipoValidacion = validaciones[avistamiento.id]
-    val yaValido = tipoValidacion == "sigue_ahi"
     val estaCargando = avistamiento.id in cargando
     val esPropio = validacionViewModel.esPropioReporte(avistamiento.usuarioId)
     val contadores by validacionViewModel.contadores.collectAsState()
