@@ -142,8 +142,10 @@ class MapaViewModel : ViewModel() {
     private suspend fun verificarReportesCercanosAZonasFrecuentes() {
         try {
             val zonasFrecuentes = AvistamientoRepository.getZonasFrecuentes()
+            android.util.Log.d("SafeWalk", "zonasFrecuentes: ${zonasFrecuentes.size}")
             if (zonasFrecuentes.isEmpty()) return
             val avistamientos = _zonas.value.flatMap { it.avistamientos }
+            android.util.Log.d("SafeWalk", "avistamientos para verificar: ${avistamientos.size}")
             var totalCercanos = 0
             zonasFrecuentes.forEach { zona ->
                 val cercanos = avistamientos.count { a ->
@@ -154,6 +156,7 @@ class MapaViewModel : ViewModel() {
                 totalCercanos += cercanos
             }
             _avisoZonasFrecuentes.value = totalCercanos
+            android.util.Log.d("SafeWalk", "avisoZonasFrecuentes: $totalCercanos")
         } catch (e: Exception) {
             android.util.Log.e("SafeWalk", "Error verificarZonasFrecuentes: ${e.message}", e)
         }

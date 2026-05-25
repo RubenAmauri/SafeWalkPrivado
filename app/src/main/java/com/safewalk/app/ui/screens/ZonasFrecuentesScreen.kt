@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,14 +35,13 @@ fun ZonasFrecuentesScreen(
     val guardadoExitoso by viewModel.guardadoExitoso.collectAsState()
     val zonaParaEditar by viewModel.zonaParaEditar.collectAsState()
 
-    var mostrarFormulario by remember { mutableStateOf(false) }
+    val mostrarFormulario by viewModel.mostrarFormulario.collectAsState()
     var zonaAEliminar by remember { mutableStateOf<ZonaFrecuente?>(null) }
 
     // Al guardar exitosamente, cerrar formulario
     LaunchedEffect(guardadoExitoso) {
         if (guardadoExitoso) {
-            mostrarFormulario = false
-            viewModel.limpiarEdicion()
+            viewModel.cerrarFormulario()
         }
     }
 
@@ -97,7 +97,7 @@ fun ZonasFrecuentesScreen(
                     )
                     IconButton(onClick = {
                         viewModel.limpiarEdicion()
-                        mostrarFormulario = true
+                        viewModel.abrirFormulario()
                     }) {
                         Icon(Icons.Default.Add, contentDescription = "Agregar", tint = Color.White)
                     }
@@ -119,7 +119,7 @@ fun ZonasFrecuentesScreen(
                     }
                 },
                 onCancelar = {
-                    mostrarFormulario = false
+                    viewModel.cerrarFormulario()
                     viewModel.limpiarEdicion()
                 }
             )
@@ -142,7 +142,7 @@ fun ZonasFrecuentesScreen(
                             Text("No tienes zonas frecuentes", color = Color.Gray)
                             Spacer(Modifier.height(8.dp))
                             Button(
-                                onClick = { mostrarFormulario = true },
+                                onClick = { viewModel.abrirFormulario() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F3864))
                             ) {
                                 Text("Agregar zona")
@@ -160,7 +160,7 @@ fun ZonasFrecuentesScreen(
                                     zona = zona,
                                     onEditar = {
                                         viewModel.seleccionarParaEditar(zona)
-                                        mostrarFormulario = true
+                                        viewModel.abrirFormulario()
                                     },
                                     onEliminar = { zonaAEliminar = zona }
                                 )
@@ -179,6 +179,28 @@ private fun TarjetaZonaFrecuente(
     onEditar: () -> Unit,
     onEliminar: () -> Unit
 ) {
+    val context = LocalContext.current
+    var direccion by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(zona.id) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val geocoder = android.location.Geocoder(context, java.util.Locale("es", "MX"))
+                val resultados = geocoder.getFromLocation(zona.latitud, zona.longitud, 1)
+                if (!resultados.isNullOrEmpty()) {
+                    val dir = resultados[0]
+                    direccion = listOfNotNull(
+                        dir.thoroughfare,
+                        dir.subLocality,
+                        dir.locality
+                    ).joinToString(", ")
+                }
+            } catch (e: Exception) {
+                direccion = null
+            }
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -196,7 +218,7 @@ private fun TarjetaZonaFrecuente(
             Column(modifier = Modifier.weight(1f)) {
                 Text(zona.nombre, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text(
-                    "%.4f, %.4f".format(zona.latitud, zona.longitud),
+                    text = direccion ?: "%.4f, %.4f".format(zona.latitud, zona.longitud),
                     fontSize = 11.sp,
                     color = Color.Gray
                 )

@@ -21,6 +21,9 @@ class ZonasFrecuentesViewModel : ViewModel() {
 
     private val _zonaParaEditar = MutableStateFlow<ZonaFrecuente?>(null)
     val zonaParaEditar: StateFlow<ZonaFrecuente?> = _zonaParaEditar
+    private val _mostrarFormulario = MutableStateFlow(false)
+    val mostrarFormulario: StateFlow<Boolean> = _mostrarFormulario
+
 
     init { cargar() }
 
@@ -71,5 +74,13 @@ class ZonasFrecuentesViewModel : ViewModel() {
             AvistamientoRepository.eliminarZonaFrecuente(zonaId)
             _zonas.value = _zonas.value.filter { it.id != zonaId }
         }
+    }
+    fun abrirFormulario() {
+        _mostrarFormulario.value = true
+    }
+
+    fun cerrarFormulario() {
+        _mostrarFormulario.value = false
+        limpiarEdicion()
     }
 }

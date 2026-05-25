@@ -65,6 +65,7 @@ fun MapaScreen(
     val avistamientoMarcado by mapaViewModel.avistamientoMarcado.collectAsState()
     val avistamientoMasCercanoId by mapaViewModel.avistamientoMasCercanoId.collectAsState()
     val avisoZonasFrecuentes by mapaViewModel.avisoZonasFrecuentes.collectAsState()
+    android.util.Log.d("SafeWalk", "avisoUI: $avisoZonasFrecuentes")
 
     val zacatecas = LatLng(22.7709, -102.5832)
     val cameraPositionState = rememberCameraPositionState {
@@ -272,33 +273,37 @@ fun MapaScreen(
                     Text("✕", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                 }
             }
-            if (avisoZonasFrecuentes > 0) {
+        }
+        // Aviso zonas frecuentes
+        if (avisoZonasFrecuentes > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        mapaViewModel.limpiarAvisoZonasFrecuentes()
+                        onIrAZonasFrecuentes()
+                    },
+                    containerColor = Color(0xFF1F3864),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                }
                 Box(
                     modifier = Modifier
+                        .size(18.dp)
+                        .background(Color.Red, RoundedCornerShape(50))
                         .align(Alignment.TopEnd)
-                        .padding(top = 16.dp, end = 16.dp)
                 ) {
-                    FloatingActionButton(
-                        onClick = { mapaViewModel.limpiarAvisoZonasFrecuentes() },
-                        containerColor = Color(0xFF1F3864),
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .background(Color.Red, RoundedCornerShape(50))
-                            .align(Alignment.TopEnd)
-                    ) {
-                        Text(
-                            text = if (avisoZonasFrecuentes > 9) "9+" else "$avisoZonasFrecuentes",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
+                    Text(
+                        text = if (avisoZonasFrecuentes > 9) "9+" else "$avisoZonasFrecuentes",
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
             }
         }
