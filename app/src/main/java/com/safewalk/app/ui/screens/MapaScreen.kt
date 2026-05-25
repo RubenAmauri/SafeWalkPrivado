@@ -275,17 +275,16 @@ fun MapaScreen(
             }
         }
         // Aviso zonas frecuentes
-        if (avisoZonasFrecuentes > 0) {
+        var mostrarDetalleAviso by remember { mutableStateOf(false) }
+        if (avisoZonasFrecuentes.isNotEmpty()) {
+            val totalReportes = avisoZonasFrecuentes.values.sum()
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 16.dp, end = 16.dp)
             ) {
                 FloatingActionButton(
-                    onClick = {
-                        mapaViewModel.limpiarAvisoZonasFrecuentes()
-                        onIrAZonasFrecuentes()
-                    },
+                    onClick = { mostrarDetalleAviso = !mostrarDetalleAviso },
                     containerColor = Color(0xFF1F3864),
                     modifier = Modifier.size(48.dp)
                 ) {
@@ -298,12 +297,60 @@ fun MapaScreen(
                         .align(Alignment.TopEnd)
                 ) {
                     Text(
-                        text = if (avisoZonasFrecuentes > 9) "9+" else "$avisoZonasFrecuentes",
+                        text = if (totalReportes > 9) "9+" else "$totalReportes",
                         color = Color.White,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.align(Alignment.Center)
                     )
+                }
+            }
+
+            if (mostrarDetalleAviso) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 72.dp, end = 16.dp)
+                        .widthIn(max = 220.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "Reportes cerca de tus zonas",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF1F3864)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        avisoZonasFrecuentes.forEach { (nombre, count) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(nombre, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                Text(
+                                    "$count reporte${if (count > 1) "s" else ""}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFF44336),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                mostrarDetalleAviso = false
+                                mapaViewModel.limpiarAvisoZonasFrecuentes()
+                                onIrAZonasFrecuentes()
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Ver zonas", color = Color(0xFF1F3864), fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }
@@ -381,6 +428,7 @@ private fun ItemAvistamiento(
     val contadoresYaNoEsta by validacionViewModel.contadoresYaNoEsta.collectAsState()
     val contador = contadores[avistamiento.id] ?: avistamiento.totalConfirmaciones
     val contadorYaNoEsta = contadoresYaNoEsta[avistamiento.id] ?: avistamiento.totalYaNoEsta
+    var mostrarDetalleAviso by remember { mutableStateOf(false) }
 
     LaunchedEffect(avistamiento.id) {
         validacionViewModel.cargarValidacion(

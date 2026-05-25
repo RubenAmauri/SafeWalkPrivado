@@ -45,8 +45,9 @@ class MapaViewModel : ViewModel() {
     val zonaMasCercana: StateFlow<Pair<ZonaAvistamiento, Double>?> = _zonaMasCercana
     private val _avistamientoMasCercanoId = MutableStateFlow<String?>(null)
     val avistamientoMasCercanoId: StateFlow<String?> = _avistamientoMasCercanoId
-    private val _avisoZonasFrecuentes = MutableStateFlow<Int>(0)
-    val avisoZonasFrecuentes: StateFlow<Int> = _avisoZonasFrecuentes
+    private val _avisoZonasFrecuentes = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val avisoZonasFrecuentes: StateFlow<Map<String, Int>> = _avisoZonasFrecuentes
+
 
     fun navegarAUbicacion(lat: Double, lng: Double) {
         _ubicacionPendiente.value = Pair(lat, lng)
@@ -136,27 +137,24 @@ class MapaViewModel : ViewModel() {
     }
 
     fun limpiarAvisoZonasFrecuentes() {
-        _avisoZonasFrecuentes.value = 0
+        _avisoZonasFrecuentes.value = emptyMap()
     }
 
     private suspend fun verificarReportesCercanosAZonasFrecuentes() {
         try {
             val zonasFrecuentes = AvistamientoRepository.getZonasFrecuentes()
-            android.util.Log.d("SafeWalk", "zonasFrecuentes: ${zonasFrecuentes.size}")
             if (zonasFrecuentes.isEmpty()) return
             val avistamientos = _zonas.value.flatMap { it.avistamientos }
-            android.util.Log.d("SafeWalk", "avistamientos para verificar: ${avistamientos.size}")
-            var totalCercanos = 0
+            val resultado = mutableMapOf<String, Int>()
             zonasFrecuentes.forEach { zona ->
                 val cercanos = avistamientos.count { a ->
                     AvistamientoRepository.distanciaMetros(
                         zona.latitud, zona.longitud, a.latitud, a.longitud
                     ) <= zona.radio
                 }
-                totalCercanos += cercanos
+                if (cercanos > 0) resultado[zona.nombre] = cercanos
             }
-            _avisoZonasFrecuentes.value = totalCercanos
-            android.util.Log.d("SafeWalk", "avisoZonasFrecuentes: $totalCercanos")
+            _avisoZonasFrecuentes.value = resultado
         } catch (e: Exception) {
             android.util.Log.e("SafeWalk", "Error verificarZonasFrecuentes: ${e.message}", e)
         }
