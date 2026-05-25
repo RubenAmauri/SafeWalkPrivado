@@ -142,17 +142,22 @@ fun MapaScreen(
                     )
                 )
             }
-            zonaMasCercana?.let { (zona, _) ->
+            zonaMasCercana?.let { (_, _) ->
                 ubicacionUsuario?.let { userPos ->
-                    Polyline(
-                        points = listOf(userPos, zona.centro),
-                        color = Color(0xFF1F3864),
-                        width = 6f,
-                        pattern = listOf(
-                            com.google.android.gms.maps.model.Dash(20f),
-                            com.google.android.gms.maps.model.Gap(10f)
+                    avistamientoMarcado?.let { avistamiento ->
+                        Polyline(
+                            points = listOf(
+                                userPos,
+                                LatLng(avistamiento.latitud, avistamiento.longitud)
+                            ),
+                            color = Color(0xFF1F3864),
+                            width = 6f,
+                            pattern = listOf(
+                                com.google.android.gms.maps.model.Dash(20f),
+                                com.google.android.gms.maps.model.Gap(10f)
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
