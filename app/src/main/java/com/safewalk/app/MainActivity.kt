@@ -49,6 +49,16 @@ fun SafeWalkNavigation(
 
     val session by SupabaseClient.client.auth.sessionStatus.collectAsState()
 
+    fun navegarAtras() {
+        if (navController.previousBackStackEntry != null) {
+            navController.popBackStack()
+        }
+    }
+
+    fun navegarA(ruta: String) {
+        navController.navigate(ruta) { launchSingleTop = true }
+    }
+
     NavHost(navController = navController, startDestination = "principal") {
 
         composable("principal") {
@@ -56,31 +66,29 @@ fun SafeWalkNavigation(
                 mapaViewModel = mapaViewModel,
                 feedViewModel = feedViewModel,
                 validacionViewModel = validacionViewModel,
-                onCrearReporte = { navController.navigate("crear_reporte") },
+                onCrearReporte = { navegarA("crear_reporte") },
                 onVerDetalleDesdeFeed = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
-                    navController.navigate("detalle_avistamiento")
+                    navegarA("detalle_avistamiento")
                 },
                 onVerDetalleDesdeMapaHack = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
-                    navController.navigate("detalle_avistamiento")
+                    navegarA("detalle_avistamiento")
                 },
-                onIrAHistorial = { navController.navigate("historial") },
-                onIrADashboard = { navController.navigate("dashboard") },
-                onIrAZonasFrecuentes = { navController.navigate("zonas_frecuentes") }
+                onIrAHistorial = { navegarA("historial") },
+                onIrADashboard = { navegarA("dashboard") },
+                onIrAZonasFrecuentes = { navegarA("zonas_frecuentes") }
             )
         }
 
-
         composable("crear_reporte") {
             val guardadoExitoso by crearViewModel.guardadoExitoso.collectAsState()
-            val guardando by crearViewModel.guardando.collectAsState()
 
             LaunchedEffect(guardadoExitoso) {
                 if (guardadoExitoso) {
                     crearViewModel.limpiarFormulario()
                     ubicacionReporte = null
-                    navController.popBackStack()
+                    navegarAtras()
                 }
             }
 
@@ -90,13 +98,11 @@ fun SafeWalkNavigation(
                 onGuardar = { avistamiento ->
                     crearViewModel.guardarReporte(avistamiento, context)
                 },
-                onSeleccionarUbicacion = {
-                    navController.navigate("seleccionar_ubicacion")
-                },
+                onSeleccionarUbicacion = { navegarA("seleccionar_ubicacion") },
                 onRegresar = {
                     crearViewModel.limpiarFormulario()
                     ubicacionReporte = null
-                    navController.popBackStack()
+                    navegarAtras()
                 }
             )
         }
@@ -105,9 +111,9 @@ fun SafeWalkNavigation(
             SeleccionarUbicacionScreen(
                 onUbicacionSeleccionada = {
                     ubicacionReporte = it
-                    navController.popBackStack()
+                    navegarAtras()
                 },
-                onRegresar = { navController.popBackStack() }
+                onRegresar = { navegarAtras() }
             )
         }
 
@@ -119,7 +125,7 @@ fun SafeWalkNavigation(
                     validacionViewModel = validacionViewModel,
                     onRegresar = {
                         feedViewModel.limpiarSeleccion()
-                        navController.popBackStack()
+                        navegarAtras()
                     },
                     onVerEnMapa = { lat, lng ->
                         mapaViewModel.marcarAvistamiento(it)
@@ -140,31 +146,33 @@ fun SafeWalkNavigation(
                 inactivosIds = inactivosIds,
                 onVolver = {
                     feedViewModel.setInactivosIds(emptySet())
-                    navController.popBackStack()
+                    navegarAtras()
                 },
                 onVerDetalle = { avistamiento ->
                     feedViewModel.seleccionarAvistamiento(avistamiento)
-                    navController.navigate("detalle_avistamiento")
+                    navegarA("detalle_avistamiento")
                 },
                 onEditar = { avistamiento ->
                     ubicacionEdicion = null
                     historialViewModel.seleccionarParaEditar(avistamiento)
-                    navController.navigate("editar_reporte")
+                    navegarA("editar_reporte")
                 }
             )
         }
+
         composable("dashboard") {
             val dashboardViewModel: DashboardViewModel = viewModel()
             DashboardScreen(
                 viewModel = dashboardViewModel,
-                onRegresar = { navController.popBackStack() },
+                onRegresar = { navegarAtras() },
                 onVerHistorial = {
                     val ids = dashboardViewModel.datos.value?.reportesInactivos?.map { it.id }?.toSet() ?: emptySet()
                     feedViewModel.setInactivosIds(ids)
-                    navController.navigate("historial")
+                    navegarA("historial")
                 }
             )
         }
+
         composable("editar_reporte") {
             val avistamiento = historialViewModel.avistamientoParaEditar.collectAsState().value
             avistamiento?.let {
@@ -172,12 +180,10 @@ fun SafeWalkNavigation(
                     avistamiento = it,
                     viewModel = historialViewModel,
                     ubicacionPreseleccionada = ubicacionEdicion,
-                    onSeleccionarUbicacion = {
-                        navController.navigate("seleccionar_ubicacion_edicion")
-                    },
+                    onSeleccionarUbicacion = { navegarA("seleccionar_ubicacion_edicion") },
                     onRegresar = {
                         ubicacionEdicion = null
-                        navController.popBackStack()
+                        navegarAtras()
                     }
                 )
             }
@@ -187,21 +193,20 @@ fun SafeWalkNavigation(
             SeleccionarUbicacionScreen(
                 onUbicacionSeleccionada = {
                     ubicacionEdicion = it
-                    navController.popBackStack()
+                    navegarAtras()
                 },
-                onRegresar = { navController.popBackStack() }
+                onRegresar = { navegarAtras() }
             )
         }
+
         composable("zonas_frecuentes") {
             ZonasFrecuentesScreen(
                 viewModel = zonasFrecuentesViewModel,
                 ubicacionPreseleccionada = ubicacionZonaFrecuente,
-                onSeleccionarUbicacion = {
-                    navController.navigate("seleccionar_ubicacion_zona_frecuente")
-                },
+                onSeleccionarUbicacion = { navegarA("seleccionar_ubicacion_zona_frecuente") },
                 onRegresar = {
                     ubicacionZonaFrecuente = null
-                    navController.popBackStack()
+                    navegarAtras()
                 }
             )
         }
@@ -210,9 +215,9 @@ fun SafeWalkNavigation(
             SeleccionarUbicacionScreen(
                 onUbicacionSeleccionada = {
                     ubicacionZonaFrecuente = it
-                    navController.popBackStack()
+                    navegarAtras()
                 },
-                onRegresar = { navController.popBackStack() }
+                onRegresar = { navegarAtras() }
             )
         }
     }
